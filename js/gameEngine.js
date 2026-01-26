@@ -47,13 +47,15 @@ class GameEngine {
     // Reward Logic
     this.maxMisses = 2; // Default
     this.gunActive = false;
+    this.hasGun = false; // Stored gun
     this.gunTimer = null;
 
     if (config.reward === 'life') {
       this.maxMisses = 3;
       this.showFeedback("Bonus Life Active! ❤️");
     } else if (config.reward === 'gun') {
-      this.activateGun();
+      this.hasGun = true;
+      this.showFeedback("Gun Ready! Press 'W' to use 🔫", true);
     } else {
       this.showFeedback("Game Start!");
     }
@@ -64,6 +66,16 @@ class GameEngine {
     this.feedbackElement = document.getElementById('feedback-overlay');
     this.scoreElement = document.getElementById('score');
     this.timeElement = document.getElementById('time');
+
+    // Input Handling
+    this.handleInput = (e) => {
+      if ((e.key === 'w' || e.key === 'W' || e.key === 'ㅈ') && this.hasGun && !this.gunActive) {
+        this.activateGun();
+        this.hasGun = false;
+        // Optionally update UI to show gun is used/gone
+      }
+    };
+    window.addEventListener('keydown', this.handleInput);
 
     // Clear existing items from DOM
     const existingItems = document.querySelectorAll('.item');
@@ -90,6 +102,12 @@ class GameEngine {
     this.isGameActive = false;
     clearInterval(this.gameTimer);
     cancelAnimationFrame(this.gameLoopId);
+
+    // Cleanup Input
+    if (this.handleInput) {
+      window.removeEventListener('keydown', this.handleInput);
+      this.handleInput = null;
+    }
 
     this.showFeedback(reason, true);
 

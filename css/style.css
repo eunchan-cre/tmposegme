@@ -142,6 +142,50 @@ button:hover:not(:disabled) {
    0:Kwang, 1:Life, 2:Kwang, 3:Life, 4:Kwang, 5:Kwang, 6:Life, 7:Kwang, 8:Kwang, 9:Gun
    Colors: Kwang(#FF5252), Life(#69F0AE), Gun(#448AFF)
 */
+.roulette-container {
+  position: relative;
+  width: 500px;
+  /* Increased size */
+  height: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#roulette-wheel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-radius: 50%;
+  border: 10px solid #fff;
+  /* Thicker border */
+  overflow: hidden;
+  transition: transform 3s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+}
+
+.pointer {
+  position: absolute;
+  top: -30px;
+  /* Adjusted prompt */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-top: 40px solid #FFD740;
+  /* Triangle pointing down */
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Hide text based pointer content if using CSS triangle */
+.pointer::after {
+  content: '';
+}
+
 #roulette-wheel {
   background: conic-gradient(#FF5252 0deg 36deg,
       /* 0: Kwang */

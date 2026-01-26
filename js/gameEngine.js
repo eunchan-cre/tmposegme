@@ -69,10 +69,24 @@ class GameEngine {
 
     // Input Handling
     this.handleInput = (e) => {
+      // Gun Activation
       if ((e.key === 'w' || e.key === 'W' || e.key === 'ㅈ') && this.hasGun && !this.gunActive) {
         this.activateGun();
         this.hasGun = false;
-        // Optionally update UI to show gun is used/gone
+      }
+
+      // Movement (Keyboard Mode)
+      // Only if Game is Active? Or anytime? Ideally only during active game but pre-start checks ok.
+      const key = e.key.toLowerCase();
+      let targetPos = this.playerPos;
+
+      if (key === 'a' || key === 'ㅁ') targetPos = 0;
+      else if (key === 's' || key === 'ㄴ') targetPos = 1;
+      else if (key === 'd' || key === 'ㅇ') targetPos = 2;
+
+      if (targetPos !== this.playerPos) {
+        this.playerPos = targetPos;
+        this.updatePlayerPosition();
       }
     };
     window.addEventListener('keydown', this.handleInput);
@@ -438,6 +452,25 @@ class GameEngine {
 
   addScore(points) {
     this.score += points;
+
+    // Check Level Up (Every 1000 points)
+    // Current Level logic was: 1, then maybe increased by time? No, it was static mostly.
+    // New logic: Level = floor(score / 1000) + 1
+    const newLevel = Math.floor(this.score / 1000) + 1;
+
+    if (newLevel > this.level) {
+      this.level = newLevel;
+      this.baseSpeed += 1; // Increase speed by 1
+      this.timeLimit = 60; // Reset time to 60s
+
+      // Visual Feedback
+      this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL ${this.level}!\nSPEED UP!\nTIME RESET!`);
+      this.updateTimeUI();
+
+      // Maybe decrease spawn rate slightly?
+      if (this.spawnRate > 500) this.spawnRate -= 100;
+    }
+
     this.updateScoreUI();
   }
 

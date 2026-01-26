@@ -11,6 +11,16 @@ let gameEngine;
 let stabilizer;
 let ctx;
 let labelContainer;
+let useKeyboard = false; // Flag for keyboard mode
+
+function enableKeyboardMode() {
+  useKeyboard = true;
+  closeRuleModal();
+  document.getElementById("startBtn").textContent = "Keyboard Start";
+  document.getElementById("max-prediction").textContent = "키보드 모드 대기 중...";
+  alert("키보드 모드가 선택되었습니다.\n\n[조작법]\nA: 왼쪽\nS: 가운데\nD: 오른쪽\nW: 총 사용");
+}
+window.enableKeyboardMode = enableKeyboardMode;
 
 /**
  * 애플리케이션 초기화
@@ -23,53 +33,70 @@ async function init() {
 
   try {
     const maxPredictionDiv = document.getElementById("max-prediction");
-    maxPredictionDiv.innerHTML = "모델 로딩 중...";
 
-    // 1. PoseEngine 초기화
-    poseEngine = new PoseEngine("./my_model/");
-    const { maxPredictions, webcam } = await poseEngine.init({
-      size: 200,
-      flip: true
-    });
-
-    maxPredictionDiv.innerHTML = "카메라 시작 중...";
-
-    // 2. Stabilizer 초기화
-    stabilizer = new PredictionStabilizer({
-      threshold: 0.7,
-      smoothingFrames: 3
-    });
-
-    // 3. GameEngine 초기화 (선택적)
+    // 3. GameEngine 초기화 (공통)
     gameEngine = new GameEngine();
 
-    // 4. 캔버스 설정
-    const canvas = document.getElementById("canvas");
-    canvas.width = 200;
-    canvas.height = 200;
-    ctx = canvas.getContext("2d");
+    if (useKeyboard) {
+      // Keyboard Mode Initialization
+      maxPredictionDiv.innerHTML = "키보드 모드 준비 완료!";
+      document.getElementById("label-container").innerHTML = "📷 카메라 꺼짐";
 
-    // 5. Label Container 설정
-    labelContainer = document.getElementById("label-container");
-    labelContainer.innerHTML = ""; // 초기화
-    for (let i = 0; i < maxPredictions; i++) {
-      labelContainer.appendChild(document.createElement("div"));
+      // Skip webcam/pose setup
+      poseEngine = null;
+      stabilizer = null;
+
+      // Enable Game Start directly
+      stopBtn.disabled = false;
+      document.getElementById("gameStartBtn").disabled = false;
+
+    } else {
+      // Normal Camera Mode Initialization
+      maxPredictionDiv.innerHTML = "모델 로딩 중...";
+
+      // 1. PoseEngine 초기화
+      poseEngine = new PoseEngine("./my_model/");
+      const { maxPredictions, webcam } = await poseEngine.init({
+        size: 200,
+        flip: true
+      });
+
+      maxPredictionDiv.innerHTML = "카메라 시작 중...";
+
+      // 2. Stabilizer 초기화
+      stabilizer = new PredictionStabilizer({
+        threshold: 0.7,
+        smoothingFrames: 3
+      });
+
+      // 4. 캔버스 설정
+      const canvas = document.getElementById("canvas");
+      canvas.width = 200;
+      canvas.height = 200;
+      ctx = canvas.getContext("2d");
+
+      // 5. Label Container 설정
+      labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = ""; // 초기화
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+      }
+
+      // 6. PoseEngine 콜백 설정
+      poseEngine.setPredictionCallback(handlePrediction);
+      poseEngine.setDrawCallback(drawPose);
+
+      // 7. PoseEngine 시작
+      poseEngine.start();
+      maxPredictionDiv.innerHTML = "준비 완료!";
+
+      stopBtn.disabled = false;
+      document.getElementById("gameStartBtn").disabled = false;
     }
-
-    // 6. PoseEngine 콜백 설정
-    poseEngine.setPredictionCallback(handlePrediction);
-    poseEngine.setDrawCallback(drawPose);
-
-    // 7. PoseEngine 시작
-    poseEngine.start();
-    maxPredictionDiv.innerHTML = "준비 완료!";
-
-    stopBtn.disabled = false;
-    document.getElementById("gameStartBtn").disabled = false;
   } catch (error) {
     console.error("초기화 중 오류 발생:", error);
     document.getElementById("max-prediction").innerHTML = "오류 발생!";
-    alert("초기화 실패!\n오류 내용: " + error.message + "\n\n1. 웹캠 권한을 허용했는지 확인하세요.\n2. my_model 폴더에 모델 파일이 있는지 확인하세요.\n3. Live Server로 실행했는지 확인하세요.");
+    alert("초기화 실패!\n오류 내용: " + error.message);
     startBtn.disabled = false;
   }
 }

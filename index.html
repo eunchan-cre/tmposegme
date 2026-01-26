@@ -63,7 +63,11 @@
       </div>
       <hr>
       <p style="font-size: 14px; color: #666; text-align: center;">잠시 후 게임이 시작됩니다...</p>
-      <button id="skip-btn" onclick="closeRuleModal()">SKIP (<span id="rule-timer">20</span>s)</button>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="keyboard-mode-btn" onclick="enableKeyboardMode()" style="background:#ff9800;">⌨️ 키보드 모드
+          (A/S/D)</button>
+        <button id="skip-btn" onclick="closeRuleModal()">SKIP (<span id="rule-timer">20</span>s)</button>
+      </div>
     </div>
   </div>
 

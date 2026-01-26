@@ -59,6 +59,7 @@ async function init() {
     poseEngine.start();
 
     stopBtn.disabled = false;
+    document.getElementById("gameStartBtn").disabled = false;
   } catch (error) {
     console.error("초기화 중 오류 발생:", error);
     alert("초기화에 실패했습니다. 콘솔을 확인하세요.");
@@ -87,6 +88,7 @@ function stop() {
 
   startBtn.disabled = false;
   stopBtn.disabled = true;
+  document.getElementById("gameStartBtn").disabled = true;
 }
 
 /**
@@ -139,10 +141,7 @@ function startGameMode(config) {
     return;
   }
 
-  gameEngine.setCommandChangeCallback((command) => {
-    console.log("새로운 명령:", command);
-    // UI 업데이트 로직 추가 가능
-  });
+
 
   gameEngine.setScoreChangeCallback((score, level) => {
     console.log(`점수: ${score}, 레벨: ${level}`);
@@ -156,3 +155,6 @@ function startGameMode(config) {
 
   gameEngine.start(config);
 }
+
+// Ensure it's globally available
+window.startGameMode = startGameMode;

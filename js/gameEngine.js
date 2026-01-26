@@ -42,6 +42,7 @@ class GameEngine {
     this.timeLimit = config.timeLimit || 60;
     this.items = [];
     this.playerPos = 1;
+    this.missedCount = 0; // Track missed fruits
 
     // UI Elements
     this.container = document.getElementById('game-container');
@@ -153,8 +154,8 @@ class GameEngine {
     itemEl.style.top = '-60px';
 
     if (type === 'dragon') {
-      // Use user provided image
-      itemEl.innerHTML = `<img src="assets/dragon_fruit.png" alt="🌵" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.textContent='🌵'">`;
+      // Use generated SVG
+      itemEl.innerHTML = `<img src="assets/dragon_fruit.svg" alt="🐉" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.textContent='🐉'">`;
     } else {
       itemEl.textContent = symbol;
     }
@@ -180,6 +181,17 @@ class GameEngine {
 
       // Remove if out of bounds
       if (item.y > 500) {
+        // Check if it was a fruit (not a bomb)
+        if (item.type !== 'bomb') {
+          this.missedCount++;
+          this.showFeedback(`Missed: ${this.missedCount}/2`);
+
+          if (this.missedCount >= 2) {
+            this.stop("Game Over! (2 Misses)");
+            return; // Stop update loop
+          }
+        }
+
         item.element.remove();
         this.items.splice(i, 1);
       }
@@ -254,9 +266,9 @@ class GameEngine {
 
     let targetPos = this.playerPos;
 
-    if (poseLabel === 'Left') targetPos = 0;
-    else if (poseLabel === 'Center') targetPos = 1;
-    else if (poseLabel === 'Right') targetPos = 2;
+    if (poseLabel === 'Left' || poseLabel === '왼쪽') targetPos = 0;
+    else if (poseLabel === 'Center' || poseLabel === '가운데' || poseLabel === '중앙') targetPos = 1;
+    else if (poseLabel === 'Right' || poseLabel === '오른쪽') targetPos = 2;
 
     if (targetPos !== this.playerPos) {
       this.playerPos = targetPos;

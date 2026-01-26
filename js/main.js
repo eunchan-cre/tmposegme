@@ -251,3 +251,30 @@ function getCurrentRotation(el) {
 window.startGameMode = startGameMode;
 window.showRoulette = showRoulette;
 window.spinRoulette = spinRoulette;
+
+// Rule Modal Logic
+let ruleTimerInterval;
+let ruleTimeLeft = 20;
+
+window.onload = function () {
+  // Show modal, start timer
+  const timerSpan = document.getElementById('rule-timer');
+  const modal = document.getElementById('rule-modal');
+
+  // Disable camera start behind modal (visual only, z-index covers it)
+
+  ruleTimerInterval = setInterval(() => {
+    ruleTimeLeft--;
+    if (timerSpan) timerSpan.textContent = ruleTimeLeft;
+
+    if (ruleTimeLeft <= 0) {
+      closeRuleModal();
+    }
+  }, 1000);
+};
+
+function closeRuleModal() {
+  clearInterval(ruleTimerInterval);
+  document.getElementById('rule-modal').style.display = 'none';
+}
+window.closeRuleModal = closeRuleModal;

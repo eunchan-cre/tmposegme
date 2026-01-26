@@ -46,6 +46,21 @@
     <button id="stopBtn" onclick="stop()" disabled>Stop</button>
   </div>
 
+  <!-- Rule Modal -->
+  <div id="rule-modal">
+    <div class="rule-content">
+      <h2>📜 게임 규칙</h2>
+      <p>1. <b>포즈로 이동</b>: 왼쪽/가운데/오른쪽으로 몸을 움직이세요.</p>
+      <p>2. <b>과일 획득</b>: 🍎(+100), 🍌(+200), 🌵(+300)</p>
+      <p>3. <b>폭탄 피하기</b>: 💣 받으면 즉시 <b>Game Over</b>!</p>
+      <p>4. <b>놓치지 말기</b>: 과일을 <b>2개 놓치면</b> 탈락!</p>
+      <p>5. <b>아이템 사용</b>: 🔫총 아이템은 <b>'W'키</b>로 사용하세요.</p>
+      <hr>
+      <p style="font-size: 14px; color: #666;">잠시 후 게임이 시작됩니다...</p>
+      <button id="skip-btn" onclick="closeRuleModal()">SKIP (<span id="rule-timer">20</span>s)</button>
+    </div>
+  </div>
+
   <!-- Roulette Overlay -->
   <div id="roulette-overlay" style="display:none;">
     <div class="roulette-container">

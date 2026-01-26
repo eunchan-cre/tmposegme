@@ -99,6 +99,7 @@ class GameEngine {
     this.updatePlayerPosition();
     this.updateScoreUI();
     this.updateTimeUI();
+    this.updateLivesUI();
 
     // Start Timer
     this.startTimer();
@@ -291,7 +292,8 @@ class GameEngine {
         // Check if it was a fruit (not a bomb)
         if (item.type !== 'bomb') {
           this.missedCount++;
-          this.showFeedback(`Missed: ${this.missedCount}/${this.maxMisses}`);
+          this.updateLivesUI(); // Update hearts
+          this.showFeedback(`Missed!`);
 
           if (this.missedCount >= this.maxMisses) {
             this.stop(`Game Over! (${this.maxMisses} Misses)`);
@@ -480,6 +482,24 @@ class GameEngine {
 
   updateTimeUI() {
     if (this.timeElement) this.timeElement.textContent = this.timeLimit;
+  }
+
+  updateLivesUI() {
+    const container = document.getElementById('lives-container');
+    if (!container) return;
+
+    // Remaining lives = Max - Missed
+    const remaining = Math.max(0, this.maxMisses - this.missedCount);
+
+    // Generate heart string
+    let hearts = "";
+    for (let i = 0; i < remaining; i++) {
+      hearts += "❤️";
+    }
+    // Optional: Add empty hearts for lost lives? "💔"?
+    // User requested "disappear", so just fewer hearts is correct.
+
+    container.textContent = hearts;
   }
 
   showFeedback(text, persist = false) {

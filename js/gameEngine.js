@@ -272,20 +272,28 @@ class GameEngine {
     item.element.remove();
     this.items.splice(index, 1);
 
-    if (item.type === 'bomb') {
+    if (item.type === 'bomb' && !this.gunActive) {
       this.stop("BOMB! Game Over");
-      // Play sound?
     } else {
       // Score
-      this.addScore(item.score);
+      let points = item.score;
+      let color = '#ffeb3b'; // Default yellow
+
+      // Special case: Bomb destroyed by Gun
+      if (item.type === 'bomb' && this.gunActive) {
+        points = 200;
+        color = '#448AFF'; // Blue for gun effect
+      }
+
+      this.addScore(points);
 
       // Feedback
       const popup = document.createElement('div');
-      popup.textContent = `+${item.score}`;
+      popup.textContent = `+${points}`;
       popup.style.position = 'absolute';
       popup.style.left = (item.lane * 33.33 + 16.66) + '%';
       popup.style.top = '400px';
-      popup.style.color = '#ffeb3b';
+      popup.style.color = color;
       popup.style.fontWeight = 'bold';
       popup.style.fontSize = '24px';
       popup.style.transition = 'top 0.5s, opacity 0.5s';

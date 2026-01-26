@@ -22,12 +22,17 @@ async function init() {
   startBtn.disabled = true;
 
   try {
+    const maxPredictionDiv = document.getElementById("max-prediction");
+    maxPredictionDiv.innerHTML = "모델 로딩 중...";
+
     // 1. PoseEngine 초기화
     poseEngine = new PoseEngine("./my_model/");
     const { maxPredictions, webcam } = await poseEngine.init({
       size: 200,
       flip: true
     });
+
+    maxPredictionDiv.innerHTML = "카메라 시작 중...";
 
     // 2. Stabilizer 초기화
     stabilizer = new PredictionStabilizer({
@@ -57,12 +62,14 @@ async function init() {
 
     // 7. PoseEngine 시작
     poseEngine.start();
+    maxPredictionDiv.innerHTML = "준비 완료!";
 
     stopBtn.disabled = false;
     document.getElementById("gameStartBtn").disabled = false;
   } catch (error) {
     console.error("초기화 중 오류 발생:", error);
-    alert("초기화에 실패했습니다. 콘솔을 확인하세요.");
+    document.getElementById("max-prediction").innerHTML = "오류 발생!";
+    alert("초기화 실패!\n오류 내용: " + error.message + "\n\n1. 웹캠 권한을 허용했는지 확인하세요.\n2. my_model 폴더에 모델 파일이 있는지 확인하세요.\n3. Live Server로 실행했는지 확인하세요.");
     startBtn.disabled = false;
   }
 }
@@ -141,104 +148,103 @@ function startGameMode(config) {
     return;
   }
 
-
-
   gameEngine.setScoreChangeCallback((score, level) => {
     console.log(`점수: ${score}, 레벨: ${level}`);
     // UI 업데이트 로직 추가 가능
+    // 게임 종료 시 alert를 여기서 호출하거나, gameEngine에서 별도의 gameEndCallback을 제공하는 것이 좋습니다.
+    // 현재 finalScore, finalLevel 변수는 이 스코프에 정의되어 있지 않습니다.
+    // alert(`게임 종료!\n최종 점수: ${score}\n최종 레벨: ${level}`);
   });
 
-  gameEngine.setGameEndCallback((finalScore, finalLevel) => {
-    console.log(`게임 종료! 최종 점수: ${finalScore}, 최종 레벨: ${finalLevel}`);
-    alert(`게임 종료!\n최종 점수: ${finalScore}\n최종 레벨: ${finalLevel}`);
-  });
+  gameEngine.start(config);
+}
 
-  // Roulette Logic
-  let isSpinning = false;
-  let currentRotation = 0;
+// Roulette Logic
+let isSpinning = false;
+let currentRotation = 0;
 
-  function showRoulette() {
-    document.getElementById('roulette-overlay').style.display = 'flex';
-    document.getElementById('spin-btn').disabled = false;
-    document.getElementById('gameStartBtn').disabled = true;
-  }
+function showRoulette() {
+  document.getElementById('roulette-overlay').style.display = 'flex';
+  document.getElementById('spin-btn').disabled = false;
+  document.getElementById('gameStartBtn').disabled = true;
+}
 
-  function spinRoulette() {
-    if (isSpinning) return;
-    isSpinning = true;
-    document.getElementById('spin-btn').disabled = true;
+function spinRoulette() {
+  if (isSpinning) return;
+  isSpinning = true;
+  document.getElementById('spin-btn').disabled = true;
 
-    // 10 Segments
-    // 1: 꽝, 2: Gun, 3: Life, 4: 꽝, 5: Gun, 6: Life, 7: 꽝, 8: Gun, 9: Life, 10: 꽝
-    // Probabilities: Life (3/10), Gun (3/10), Kkwang (4/10)
+  // 10 Segments
+  // 1: 꽝, 2: Gun, 3: Life, 4: 꽝, 5: Gun, 6: Life, 7: 꽝, 8: Gun, 9: Life, 10: 꽝
+  // Probabilities: Life (3/10), Gun (3/10), Kkwang (4/10)
 
-    // Random spin angle (at least 3 full spins)
-    const extraSpins = 360 * 5;
-    const randomAngle = Math.floor(Math.random() * 360);
-    const totalRotation = currentRotation + extraSpins + randomAngle;
+  // Random spin angle (at least 3 full spins)
+  const extraSpins = 360 * 5;
+  const randomAngle = Math.floor(Math.random() * 360);
+  const totalRotation = currentRotation + extraSpins + randomAngle;
 
-    const wheel = document.getElementById('roulette-wheel');
-    wheel.style.transform = `rotate(${totalRotation}deg)`;
-    currentRotation = totalRotation;
+  const wheel = document.getElementById('roulette-wheel');
+  wheel.style.transform = `rotate(${totalRotation}deg)`;
+  currentRotation = totalRotation;
 
-    let segmentAngle = totalRotation % 360;
-    // Wheel rotates clockwise, so pointer at top interacts with segment at (360 - angle)
-    // Segments start at 0deg (3 o'clock? No, standard CSS rotation starts 12 o'clock if structured that way or right)
-    // Based on CSS: rotate(calc(36deg * (var(--i) - 1)))
-    // i=1 (0deg), i=2 (36deg)... i=10 (324deg)
-    // Pointer is at top (0??). Wait, my CSS put pointer at top.
+  let segmentAngle = totalRotation % 360;
+  // Wheel rotates clockwise, so pointer at top interacts with segment at (360 - angle)
+  // Segments start at 0deg (3 o'clock? No, standard CSS rotation starts 12 o'clock if structured that way or right)
+  // Based on CSS: rotate(calc(36deg * (var(--i) - 1)))
+  // i=1 (0deg), i=2 (36deg)... i=10 (324deg)
+  // Pointer is at top (0??). Wait, my CSS put pointer at top.
 
-    // Let's rely on simple mapping based on randomAngle logic if we simplify.
-    // Actually, let's just calculate which segment 'wins'.
-    // 360deg / 10 = 36deg per segment.
-    // If rotation is 0, segment 1 is at right? No, usually right.
-    // Let's assume standard behavior: 0deg is 12 o'clock if rotated -90deg container, but here simpler.
-    // Let's use a simpler logic:
-    // We determine the result FIRST, then rotate TO that result.
+  // Let's rely on simple mapping based on randomAngle logic if we simplify.
+  // Actually, let's just calculate which segment 'wins'.
+  // 360deg / 10 = 36deg per segment.
+  // If rotation is 0, segment 1 is at right? No, usually right.
+  // Let's assume standard behavior: 0deg is 12 o'clock if rotated -90deg container, but here simpler.
+  // Let's use a simpler logic:
+  // We determine the result FIRST, then rotate TO that result.
 
-    // Let's keep the random spin visual, and calculate result from angle.
-    // Normalized angle (0-360)
-    // We need to account for pointer position. Pointer at Top (Top Center).
-    // Zero degrees usually points UP in these CSS implementations if we transform -90 or similar.
-    // But here `segment` has `skewY(54deg)` and `rotate`. This suggests standard conic setup.
-    // Usually 0deg is at 12 o'clock in conic-gradient if we specified `from 0deg`? 
-    // Default conic start 12'o clock? No, usually 12 if `from 0deg` and Up.
-    // Standard CSS angles: 0 is Up? No 0 is Right (3 o'clock) usually.
-    // Conic gradient: 0deg is Top (12 o'clock).
-    // So Segment 1 is 0-36deg (12-1ish).
-    // If we rotate wheel by X deg clockwise.
-    // The segment passing the TOP pointer is determined by:
-    // (360 - (Rotation % 360)) % 360.
+  // Let's keep the random spin visual, and calculate result from angle.
+  // Normalized angle (0-360)
+  // We need to account for pointer position. Pointer at Top (Top Center).
+  // Zero degrees usually points UP in these CSS implementations if we transform -90 or similar.
+  // But here `segment` has `skewY(54deg)` and `rotate`. This suggests standard conic setup.
+  // Usually 0deg is at 12 o'clock in conic-gradient if we specified `from 0deg`? 
+  // Default conic start 12'o clock? No, usually 12 if `from 0deg` and Up.
+  // Standard CSS angles: 0 is Up? No 0 is Right (3 o'clock) usually.
+  // Conic gradient: 0deg is Top (12 o'clock).
+  // So Segment 1 is 0-36deg (12-1ish).
+  // If we rotate wheel by X deg clockwise.
+  // The segment passing the TOP pointer is determined by:
+  // (360 - (Rotation % 360)) % 360.
 
-    setTimeout(() => {
-      isSpinning = false;
+  setTimeout(() => {
+    isSpinning = false;
 
-      // Calculate Index
-      // Pointer is at TOP (0 degrees relative to wheel start if wheel wasn't rotated?)
-      // Conic gradient starts at Top.
-      // If we rotate wheel 10 degrees Clockwise, the 350-360 part is at Top.
-      // So pointer is at Angle: (360 - (totalRotation % 360)) % 360
-      const actualAngle = (360 - (totalRotation % 360)) % 360;
-      const segmentIndex = Math.floor(actualAngle / 36); // 0-9
+    // Calculate Index
+    // Pointer is at TOP (0 degrees relative to wheel start if wheel wasn't rotated?)
+    // Conic gradient starts at Top.
+    // If we rotate wheel 10 degrees Clockwise, the 350-360 part is at Top.
+    // So pointer is at Angle: (360 - (totalRotation % 360)) % 360
+    const actualAngle = (360 - (totalRotation % 360)) % 360;
+    const segmentIndex = Math.floor(actualAngle / 36); // 0-9
 
-      // Map index to reward
-      // Order: Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang
-      // Array: ['꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝']
-      const rewards = ['kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang'];
-      const reward = rewards[segmentIndex];
+    // Map index to reward
+    // Order: Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang
+    // Array: ['꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝']
+    const rewards = ['kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang'];
+    const reward = rewards[segmentIndex];
 
-      let msg = "꽝! 아무 효과 없이 시작합니다.";
-      if (reward === 'gun') msg = "🔫 10초간 자동 총 발사! (폭탄 파괴)";
-      if (reward === 'life') msg = "❤️ 목숨 +1개 획득!";
+    let msg = "꽝! 아무 효과 없이 시작합니다.";
+    if (reward === 'gun') msg = "🔫 10초간 자동 총 발사! (폭탄 파괴)";
+    if (reward === 'life') msg = "❤️ 목숨 +1개 획득!";
 
-      alert(msg);
+    alert(msg);
 
-      document.getElementById('roulette-overlay').style.display = 'none';
-      startGameMode({ reward: reward });
+    document.getElementById('roulette-overlay').style.display = 'none';
+    startGameMode({ reward: reward });
 
-    }, 3100); // Wait for transition (3s) + buffer
-  }
+  }, 3100); // Wait for transition (3s) + buffer
+}
 
-  window.startGameMode = startGameMode;
-  window.showRoulette = showRoulette;
-  window.spinRoulette = spinRoulette;
+window.startGameMode = startGameMode;
+window.showRoulette = showRoulette;
+window.spinRoulette = spinRoulette;

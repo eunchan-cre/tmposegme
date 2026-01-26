@@ -50,13 +50,19 @@
   <div id="rule-modal">
     <div class="rule-content">
       <h2>📜 게임 규칙</h2>
-      <p>1. <b>포즈로 이동</b>: 왼쪽/가운데/오른쪽으로 몸을 움직이세요.</p>
-      <p>2. <b>과일 획득</b>: 🍎(+100), 🍌(+200), 🌵(+300)</p>
-      <p>3. <b>폭탄 피하기</b>: 💣 받으면 즉시 <b>Game Over</b>!</p>
-      <p>4. <b>놓치지 말기</b>: 과일을 <b>2개 놓치면</b> 탈락!</p>
-      <p>5. <b>아이템 사용</b>: 🔫총 아이템은 <b>'W'키</b>로 사용하세요.</p>
+      <div style="text-align: left; padding-left: 10px;">
+        <p>1. <b>포즈로 이동</b>: 🏃‍♂️ 왼쪽/가운데/오른쪽 이동</p>
+        <p>2. <b>과일 획득</b>: 🍎(+100), 🍌(+200), 🌵(+300)</p>
+        <p>3. <b>💣 폭탄 조심</b>: 받으면 즉시 <b>Game Over</b>!</p>
+        <p>4. <b>🎡 룰렛 보상</b> (게임 시작 전): <br>
+          &nbsp;&nbsp; ❤️ <b>추가 목숨</b>: 실수 3번까지 허용<br>
+          &nbsp;&nbsp; 🔫 <b>총 아이템</b>: <b>'W'키</b>로 폭탄 파괴 (+200점)<br>
+          &nbsp;&nbsp; 💩 <b>꽝</b>: 아쉽지만 다음 기회에...
+        </p>
+        <p>5. <b>탈락 조건</b>: 과일 <b>2개 이상</b> 놓치면 끝! (목숨 있으면 3개)</p>
+      </div>
       <hr>
-      <p style="font-size: 14px; color: #666;">잠시 후 게임이 시작됩니다...</p>
+      <p style="font-size: 14px; color: #666; text-align: center;">잠시 후 게임이 시작됩니다...</p>
       <button id="skip-btn" onclick="closeRuleModal()">SKIP (<span id="rule-timer">20</span>s)</button>
     </div>
   </div>

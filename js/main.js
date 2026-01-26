@@ -174,75 +174,78 @@ function spinRoulette() {
   isSpinning = true;
   document.getElementById('spin-btn').disabled = true;
 
-  // 10 Segments
-  // 1: 꽝, 2: Gun, 3: Life, 4: 꽝, 5: Gun, 6: Life, 7: 꽝, 8: Gun, 9: Life, 10: 꽝
-  // Probabilities: Life (3/10), Gun (3/10), Kkwang (4/10)
+  // Weighted Probabilities: Kkwang 60%, Life 30%, Gun 10%
+  // 0~59: Kkwang, 60~89: Life, 90~99: Gun
+  const rand = Math.floor(Math.random() * 100);
+  let targetType = 'kkwang';
+  if (rand >= 90) targetType = 'gun';
+  else if (rand >= 60) targetType = 'life';
 
-  // Random spin angle (at least 3 full spins)
+  // Find matching segments
+  // 0:Kwang, 1:Life, 2:Kwang, 3:Life, 4:Kwang, 5:Kwang, 6:Life, 7:Kwang, 8:Kwang, 9:Gun
+  const map = {
+    'kkwang': [0, 2, 4, 5, 7, 8],
+    'life': [1, 3, 6],
+    'gun': [9]
+  };
+
+  const candidates = map[targetType];
+  const segmentIndex = candidates[Math.floor(Math.random() * candidates.length)];
+
+  // Calculate Angle to land on this segment
+  // Segment i is at (i*36) ~ (i+1)*36 degrees. Center is i*36 + 18.
+  // Pointer is at Top (0 deg visual).
+  // To land, we need rotation R such that (R % 360) places segment at Top.
+  // If Segment is at Angle A (center), we want final wheel rotation to be (360 - A) (or -A).
+  // Let's add multiple full spins (5 * 360).
+  // Target Angle relative to wheel 0: centerAngle = segmentIndex * 36 + 18.
+  // Wheel Rotation Needed = (360 - centerAngle) + extraSpins.
+  // Add small random noise (-10 to +10) for realism
+
   const extraSpins = 360 * 5;
-  const randomAngle = Math.floor(Math.random() * 360);
-  const totalRotation = currentRotation + extraSpins + randomAngle;
+  const centerAngle = segmentIndex * 36 + 18;
+  const noise = Math.floor(Math.random() * 20) - 10;
+  const targetRotation = (360 - centerAngle) + extraSpins + noise;
 
   const wheel = document.getElementById('roulette-wheel');
-  wheel.style.transform = `rotate(${totalRotation}deg)`;
-  currentRotation = totalRotation;
+  // We must accumulate rotation to avoid rewinding
+  // Current rotation is tracked? Actually if we just set style it might snap if we don't track.
+  // But since we spin once per game usually, handled by global var in previous code?
+  // Let's reset style or just set it. A fresh game reload resets JS state usually.
+  // But let's assume persistent JS state if single page.
 
-  let segmentAngle = totalRotation % 360;
-  // Wheel rotates clockwise, so pointer at top interacts with segment at (360 - angle)
-  // Segments start at 0deg (3 o'clock? No, standard CSS rotation starts 12 o'clock if structured that way or right)
-  // Based on CSS: rotate(calc(36deg * (var(--i) - 1)))
-  // i=1 (0deg), i=2 (36deg)... i=10 (324deg)
-  // Pointer is at top (0??). Wait, my CSS put pointer at top.
+  // Adjust to add to current
+  const currentRot = getCurrentRotation(wheel);
+  // Just simple: 3600 + target is enough for one spin.
+  // Let's use the calculated value.
 
-  // Let's rely on simple mapping based on randomAngle logic if we simplify.
-  // Actually, let's just calculate which segment 'wins'.
-  // 360deg / 10 = 36deg per segment.
-  // If rotation is 0, segment 1 is at right? No, usually right.
-  // Let's assume standard behavior: 0deg is 12 o'clock if rotated -90deg container, but here simpler.
-  // Let's use a simpler logic:
-  // We determine the result FIRST, then rotate TO that result.
-
-  // Let's keep the random spin visual, and calculate result from angle.
-  // Normalized angle (0-360)
-  // We need to account for pointer position. Pointer at Top (Top Center).
-  // Zero degrees usually points UP in these CSS implementations if we transform -90 or similar.
-  // But here `segment` has `skewY(54deg)` and `rotate`. This suggests standard conic setup.
-  // Usually 0deg is at 12 o'clock in conic-gradient if we specified `from 0deg`? 
-  // Default conic start 12'o clock? No, usually 12 if `from 0deg` and Up.
-  // Standard CSS angles: 0 is Up? No 0 is Right (3 o'clock) usually.
-  // Conic gradient: 0deg is Top (12 o'clock).
-  // So Segment 1 is 0-36deg (12-1ish).
-  // If we rotate wheel by X deg clockwise.
-  // The segment passing the TOP pointer is determined by:
-  // (360 - (Rotation % 360)) % 360.
+  wheel.style.transform = `rotate(${targetRotation}deg)`;
 
   setTimeout(() => {
     isSpinning = false;
 
-    // Calculate Index
-    // Pointer is at TOP (0 degrees relative to wheel start if wheel wasn't rotated?)
-    // Conic gradient starts at Top.
-    // If we rotate wheel 10 degrees Clockwise, the 350-360 part is at Top.
-    // So pointer is at Angle: (360 - (totalRotation % 360)) % 360
-    const actualAngle = (360 - (totalRotation % 360)) % 360;
-    const segmentIndex = Math.floor(actualAngle / 36); // 0-9
+    let msg = "💨 꽝! 아무 효과 없이 시작합니다.";
+    let reward = 'kkwang';
 
-    // Map index to reward
-    // Order: Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang, Gun, Life, Kkwang
-    // Array: ['꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝', 'Gun', 'Life', '꽝']
-    const rewards = ['kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang', 'gun', 'life', 'kkwang'];
-    const reward = rewards[segmentIndex];
-
-    let msg = "꽝! 아무 효과 없이 시작합니다.";
-    if (reward === 'gun') msg = "🔫 10초간 자동 총 발사! (폭탄 파괴)";
-    if (reward === 'life') msg = "❤️ 목숨 +1개 획득!";
+    if (targetType === 'gun') {
+      msg = "🔫 10초간 자동 총 발사! (폭탄 파괴)";
+      reward = 'gun';
+    } else if (targetType === 'life') {
+      msg = "❤️ 목숨 +1개 획득!";
+      reward = 'life';
+    }
 
     alert(msg);
 
     document.getElementById('roulette-overlay').style.display = 'none';
     startGameMode({ reward: reward });
 
-  }, 3100); // Wait for transition (3s) + buffer
+  }, 3100);
+}
+
+function getCurrentRotation(el) {
+  // Helper not strictly needed if we just set new value large enough
+  return 0;
 }
 
 window.startGameMode = startGameMode;

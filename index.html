@@ -50,7 +50,18 @@
   <div id="roulette-overlay" style="display:none;">
     <div class="roulette-container">
       <div id="roulette-wheel">
-        <!-- Labels positioned by JS or manually -->
+        <!-- 0:Kwang, 1:Life, 2:Kwang, 3:Life, 4:Kwang, 5:Kwang, 6:Life, 7:Kwang, 8:Kwang, 9:Gun -->
+        <!-- Angle = index*36 + 18 -->
+        <div class="wheel-label" style="transform: rotate(18deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(54deg) translate(20px);"><span>❤️</span></div>
+        <div class="wheel-label" style="transform: rotate(90deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(126deg) translate(20px);"><span>❤️</span></div>
+        <div class="wheel-label" style="transform: rotate(162deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(198deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(234deg) translate(20px);"><span>❤️</span></div>
+        <div class="wheel-label" style="transform: rotate(270deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(306deg) translate(20px);"><span>꽝</span></div>
+        <div class="wheel-label" style="transform: rotate(342deg) translate(20px);"><span>🔫</span></div>
       </div>
       <div class="pointer">▼</div>
       <button id="spin-btn" onclick="spinRoulette()">SPIN!</button>

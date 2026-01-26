@@ -217,6 +217,20 @@ class GameEngine {
     this.gunActive = true;
     this.showFeedback("Auto Gun Active! 🔫", true);
 
+    // Create Visual Gun Element
+    if (!this.gunElement) {
+      this.gunElement = document.createElement('div');
+      this.gunElement.textContent = "🔫";
+      this.gunElement.style.position = "absolute";
+      this.gunElement.style.fontSize = "30px"; // Smaller
+      this.gunElement.style.bottom = "20px"; // Same line as basket
+      this.gunElement.style.zIndex = "20";
+      this.gunElement.style.transition = "left 0.1s linear";
+      this.gunElement.style.left = "50%"; // Start center
+      this.gunElement.style.transform = "translateX(-50%)"; // Center alignment specific to the element itself
+      this.container.appendChild(this.gunElement);
+    }
+
     // Clear any existing gun timer to prevent multiple timers
     if (this.gunTimer) {
       clearTimeout(this.gunTimer);
@@ -225,7 +239,13 @@ class GameEngine {
     this.gunTimer = setTimeout(() => {
       this.gunActive = false;
       this.showFeedback("Gun Deactivated", false);
-      this.gunTimer = null; // Clear the timer ID
+      this.gunTimer = null;
+
+      // Remove visual gun
+      if (this.gunElement) {
+        this.gunElement.remove();
+        this.gunElement = null;
+      }
     }, 10000); // 10 seconds
   }
 
@@ -235,7 +255,15 @@ class GameEngine {
 
       // Gun Logic: Auto collect/destroy if visible (y > 0)
       if (this.gunActive && item.y > 0) {
-        // Visual effect of shooting? passing for now, just logical
+        // Move Gun to this lane visually
+        if (this.gunElement) {
+          const laneCenter = (item.lane * 33.33 + 16.66);
+          this.gunElement.style.left = `calc(${laneCenter}% - 15px)`; // Center of gun (width approx 30)
+        }
+
+        // Fire effect? (Optional, maybe simple flash)
+
+        // Logical destruction
         this.handleCollision(item, i);
         continue;
       }

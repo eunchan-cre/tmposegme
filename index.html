@@ -1,30 +1,78 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Teachable Machine Pose Model</title>
-    <link rel="stylesheet" href="./css/style.css" />
-  </head>
-  <body>
-    <h1>Teachable Machine Pose Model</h1>
-    <div class="button-container">
-      <button type="button" id="startBtn" onclick="init()">Start</button>
-      <button type="button" id="stopBtn" onclick="stop()" disabled>Stop</button>
-    </div>
-    <div class="canvas-container">
-      <canvas id="canvas"></canvas>
-      <div id="max-prediction"></div>
-    </div>
-    <div id="label-container"></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Fruit Catcher</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="https://as.al/pretendard/pretendard.css" />
+</head>
+<body>
 
-    <!-- Teachable Machine 라이브러리 -->
+    <h1>🍎 Sky Fruit Catcher 🍌</h1>
+
+    <div class="game-info">
+        <div>점수: <span id="score">0</span></div>
+        <div>남은 시간: <span id="time">60</span>s</div>
+        <div style="display:none">레벨: <span id="level">1</span></div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div id="game-container">
+        <!-- 3 Lanes -->
+        <div class="lane" id="lane-0">
+            <div class="lane-label">LEFT</div>
+        </div>
+        <div class="lane" id="lane-1">
+            <div class="lane-label">CENTER</div>
+        </div>
+        <div class="lane" id="lane-2">
+            <div class="lane-label">RIGHT</div>
+        </div>
+
+        <!-- Player's Basket -->
+        <div id="player"></div>
+
+        <!-- Feedback Overlay (Game Over / +Score) -->
+        <div id="feedback-overlay"></div>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn" onclick="init()">Camera Start</button>
+        <button id="gameStartBtn" onclick="startGame()" disabled>Game Start</button>
+        <button id="stopBtn" onclick="stop()" disabled>Stop</button>
+    </div>
+
+    <!-- Webcam & Debug Info -->
+    <div id="debug-area">
+        <div id="max-prediction">준비 중...</div>
+        <div id="label-container"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Teachable Machine Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+    
+    <!-- Game Logic -->
+    <script src="js/stabilizer.js"></script>
+    <script src="js/poseEngine.js"></script>
+    <script src="js/gameEngine.js"></script>
+    <script src="js/main.js"></script>
 
-    <!-- 애플리케이션 모듈 -->
-    <script src="./js/stabilizer.js"></script>
-    <script src="./js/poseEngine.js"></script>
-    <script src="./js/gameEngine.js"></script>
-    <script src="./js/main.js"></script>
-  </body>
+    <script>
+        // Game specific global function for the button
+        function startGame() {
+            if (window.startGameMode) {
+                window.startGameMode({
+                    timeLimit: 60,
+                    commands: ["Left", "Center", "Right"] 
+                });
+                document.getElementById('gameStartBtn').disabled = true;
+            }
+        }
+    </script>
+</body>
 </html>

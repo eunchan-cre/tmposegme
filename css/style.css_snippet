@@ -1,0 +1,107 @@
+
+/* Roulette Overlay */
+#roulette-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.roulette-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+#roulette-wheel {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    overflow: hidden;
+    transition: transform 3s cubic-bezier(0.17, 0.67, 0.83, 0.67); /* Ease-out for spin */
+}
+
+.segment {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    background: var(--clr);
+    transform-origin: bottom right;
+    transform: rotate(calc(36deg * (var(--i) - 1))) skewY(54deg); /* 360/10 = 36deg per segment */
+    top: 0;
+    left: 0;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0); /* Basic clip, CSS trickery needed for perfect segments usually, but let's try gradients or skew */
+    /* Simplified segment style for 10 items is hard with just divs. 
+       Let's use conic-gradient for background and absolute positioned icons. */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+/* Re-styling wheel for simpler implementation */
+#roulette-wheel {
+    background: conic-gradient(
+        #FF5252 0deg 36deg, 
+        #448AFF 36deg 72deg, 
+        #69F0AE 72deg 108deg,
+        #FFD740 108deg 144deg,
+        #FF5252 144deg 180deg,
+        #448AFF 180deg 216deg,
+        #69F0AE 216deg 252deg,
+        #FFD740 252deg 288deg,
+        #FF5252 288deg 324deg,
+        #448AFF 324deg 360deg
+    );
+    box-shadow: 0 0 0 5px #333, 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* Icons on wheel */
+.wheel-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0 0;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.pointer {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 30px;
+    color: white;
+    z-index: 10;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+#spin-btn {
+    margin-top: 40px;
+    font-size: 24px;
+    padding: 10px 40px;
+    background: #ffeb3b; 
+    color: black;
+    font-weight: bold;
+    border: 4px solid #fbc02d;
+    box-shadow: 0 4px 0 #fbc02d;
+    position: absolute;
+    bottom: -80px;
+    z-index: 101;
+}
+#spin-btn:active {
+    box-shadow: 0 0 0 #fbc02d;
+    transform: translateY(4px);
+}

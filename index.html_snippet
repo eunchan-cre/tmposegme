@@ -1,0 +1,21 @@
+
+    <!-- Roulette Overlay -->
+    <div id="roulette-overlay" style="display:none;">
+        <div class="roulette-container">
+            <div id="roulette-wheel">
+                <!-- Segments will be drawn by CSS/JS -->
+                <div class="segment" style="--i:1; --clr:#FF5252;"><span>꽝</span></div>
+                <div class="segment" style="--i:2; --clr:#448AFF;"><span>🔫</span></div>
+                <div class="segment" style="--i:3; --clr:#69F0AE;"><span>❤️</span></div>
+                <div class="segment" style="--i:4; --clr:#FF5252;"><span>꽝</span></div>
+                <div class="segment" style="--i:5; --clr:#448AFF;"><span>🔫</span></div>
+                <div class="segment" style="--i:6; --clr:#69F0AE;"><span>❤️</span></div>
+                <div class="segment" style="--i:7; --clr:#FF5252;"><span>꽝</span></div>
+                <div class="segment" style="--i:8; --clr:#448AFF;"><span>🔫</span></div>
+                <div class="segment" style="--i:9; --clr:#69F0AE;"><span>❤️</span></div>
+                <div class="segment" style="--i:10; --clr:#FF5252;"><span>꽝</span></div>
+            </div>
+            <div class="pointer">▼</div>
+            <button id="spin-btn" onclick="spinRoulette()">SPIN!</button>
+        </div>
+    </div>

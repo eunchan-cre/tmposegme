@@ -40,10 +40,23 @@ class GameEngine {
     this.score = 0;
     this.level = 1;
     this.timeLimit = config.timeLimit || 60;
-    this.items = [];
     this.playerPos = 1;
     this.missedCount = 0; // Track missed fruits
     this.spawningPaused = false; // Level transition logic
+
+    // Reward Logic
+    this.maxMisses = 2; // Default
+    this.gunActive = false;
+    this.gunTimer = null;
+
+    if (config.reward === 'life') {
+      this.maxMisses = 3;
+      this.showFeedback("Bonus Life Active! ❤️");
+    } else if (config.reward === 'gun') {
+      this.activateGun();
+    } else {
+      this.showFeedback("Game Start!");
+    }
 
     // UI Elements
     this.container = document.getElementById('game-container');
@@ -182,9 +195,33 @@ class GameEngine {
     });
   }
 
+  activateGun() {
+    this.gunActive = true;
+    this.showFeedback("Auto Gun Active! 🔫", true);
+
+    // Clear any existing gun timer to prevent multiple timers
+    if (this.gunTimer) {
+      clearTimeout(this.gunTimer);
+    }
+
+    this.gunTimer = setTimeout(() => {
+      this.gunActive = false;
+      this.showFeedback("Gun Deactivated", false);
+      this.gunTimer = null; // Clear the timer ID
+    }, 10000); // 10 seconds
+  }
+
   updateItems() {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
+
+      // Gun Logic: Auto collect/destroy if visible (y > 0)
+      if (this.gunActive && item.y > 0) {
+        // Visual effect of shooting? passing for now, just logical
+        this.handleCollision(item, i);
+        continue;
+      }
+
       item.y += item.speed;
       item.element.style.top = item.y + 'px';
 
@@ -193,10 +230,10 @@ class GameEngine {
         // Check if it was a fruit (not a bomb)
         if (item.type !== 'bomb') {
           this.missedCount++;
-          this.showFeedback(`Missed: ${this.missedCount}/2`);
+          this.showFeedback(`Missed: ${this.missedCount}/${this.maxMisses}`);
 
-          if (this.missedCount >= 2) {
-            this.stop("Game Over! (2 Misses)");
+          if (this.missedCount >= this.maxMisses) {
+            this.stop(`Game Over! (${this.maxMisses} Misses)`);
             return; // Stop update loop
           }
         }

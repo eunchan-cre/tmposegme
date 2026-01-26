@@ -43,6 +43,7 @@ class GameEngine {
     this.items = [];
     this.playerPos = 1;
     this.missedCount = 0; // Track missed fruits
+    this.spawningPaused = false; // Level transition logic
 
     // UI Elements
     this.container = document.getElementById('game-container');
@@ -94,13 +95,9 @@ class GameEngine {
 
       // Level up / Difficulty increase
       if (this.timeLimit === 30) {
-        this.spawnRate = 1000;
-        this.baseSpeed = 4;
-        this.showFeedback("Speed Up!");
+        this.triggerLevelTransition(1000, 4, "Warning: Speed Up!");
       } else if (this.timeLimit === 10) {
-        this.spawnRate = 500;
-        this.baseSpeed = 6;
-        this.showFeedback("Fever Time!");
+        this.triggerLevelTransition(500, 6, "Warning: Fever Time!");
       }
 
       if (this.timeLimit <= 0) {
@@ -109,13 +106,25 @@ class GameEngine {
     }, 1000);
   }
 
+  triggerLevelTransition(newRate, newSpeed, message) {
+    this.spawningPaused = true;
+    this.showFeedback(message, true); // Persist message
+
+    setTimeout(() => {
+      this.spawningPaused = false;
+      this.spawnRate = newRate;
+      this.baseSpeed = newSpeed;
+      this.showFeedback("GO!!", false); // Clear message
+    }, 2000); // 2 seconds pause
+  }
+
   loop() {
     if (!this.isGameActive) return;
 
     const now = Date.now();
 
     // 1. Spawn Item
-    if (now - this.lastSpawnTime > this.spawnRate) {
+    if (!this.spawningPaused && now - this.lastSpawnTime > this.spawnRate) {
       this.spawnItem();
       this.lastSpawnTime = now;
     }

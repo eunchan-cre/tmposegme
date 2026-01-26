@@ -261,11 +261,12 @@ class GameEngine {
           this.gunElement.style.left = `calc(${laneCenter}% - 15px)`; // Center of gun (width approx 30)
         }
 
-        // Fire effect? (Optional, maybe simple flash)
-
-        // Logical destruction
-        this.handleCollision(item, i);
-        continue;
+        // Fire effect
+        this.fireBullet(item, i);
+        return; // Wait for bullet to hit before destroying? 
+        // Actually, for better feel, bullet travels fast, then destroy.
+        // But since we are in a loop, we need to ensure we don't fire multiple times for same item.
+        // Let's add 'isTargeted' flag to item.
       }
 
       item.y += item.speed;
@@ -288,6 +289,65 @@ class GameEngine {
         this.items.splice(i, 1);
       }
     }
+  }
+
+  fireBullet(item, index) {
+    if (item.isTargeted) return;
+    item.isTargeted = true; // Prevent multiple shots
+
+    const bullet = document.createElement('div');
+    bullet.textContent = '📍'; // Or '⚡', '🔴'
+    bullet.style.position = 'absolute';
+    bullet.style.fontSize = '20px';
+    bullet.style.left = this.gunElement.style.left; // Start from gun
+    bullet.style.bottom = '50px'; // Gun is at 20px bottom + size
+    bullet.style.zIndex = '15';
+    bullet.style.transition = 'bottom 0.2s linear, left 0.2s linear'; // Fast speed (< 1s)
+    this.container.appendChild(bullet);
+
+    // Calculate target position
+    // Item y is top. We want to hit it.
+    // CSS bottom is 500 - y - height? 
+    // Item Y is from top. Container height 500.
+    // Target Bottom = 500 - (item.y + 30); // Hit center
+    // Let's uset requestAnimationFrame or setTimeout for transition trigger
+
+    // Actually simplicity:
+    // We want visual hit.
+    // 0.2s is fast enough.
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      const laneCenter = (item.lane * 33.33 + 16.66);
+      bullet.style.left = `calc(${laneCenter}% - 10px)`; // Center of bullet
+      bullet.style.bottom = (500 - item.y) + 'px'; // Fly to item
+    });
+
+    // On Hit
+    setTimeout(() => {
+      bullet.remove();
+      // Check if item still exists (it should)
+      // Handle collision logically now
+
+      // Re-find index just in case array shifted? 
+      // Array index relies on loop order. splice shifts subsequent. 
+      // But since this is async, the main loop continues.
+      // If we remove item HERE, we must be careful about main loop's index.
+      // Safer approach: Mark item as 'destroyed' in main loop and remove it.
+      // But wait, user wants bullet -> THEN destroy.
+
+      // Let's cheat slightly: 
+      // Visual destroy happens here. Logical remove from array happens here?
+      // If we remove from array, main loop 'i' loop might skip next item if we don't adjust 'i' if called from loop?
+      // But updateItems iterates backwards! So splicing current index 'i' acts safe for backwards loop.
+      // BUT this setTimeout runs OUTSIDE the loop.
+
+      // Find item by ID to be safe
+      const currentIdx = this.items.findIndex(it => it.id === item.id);
+      if (currentIdx !== -1) {
+        this.handleCollision(item, currentIdx);
+      }
+    }, 200); // Sync with transition duration
   }
 
   checkCollisions() {

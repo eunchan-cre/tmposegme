@@ -4,7 +4,9 @@
  */
 
 class GameEngine {
-  constructor() {
+  constructor(rootElement) {
+    this.root = rootElement || document; // Scope
+
     this.score = 0;
     this.level = 1;
     this.timeLimit = 60;
@@ -19,7 +21,7 @@ class GameEngine {
 
     // Settings
     this.lanes = [0, 1, 2];
-    this.laneWidth = 200; // Approx width, used for centering if needed
+    this.laneWidth = 200;
     this.spawnRate = 1500; // ms
     this.lastSpawnTime = 0;
     this.baseSpeed = 3; // pixels per frame
@@ -28,30 +30,38 @@ class GameEngine {
     this.onScoreChange = null;
     this.onGameEnd = null;
 
-    this.container = null;
-    this.playerElement = null;
-    this.feedbackElement = null;
+    // UI Elements (Scoped)
+    // We expect the root to contain these classes/IDs.
+    // Adapting for both Single (ID based in HTML) and PVP (Class based?)
+    // Strategy: Try querySelector argument, fallback to ID.
+
+    this.container = this.root.querySelector('.game-board') || this.root.getElementById('game-container');
+    this.playerElement = this.root.querySelector('.player') || this.root.getElementById('player');
+    this.feedbackElement = this.root.querySelector('.feedback-overlay') || this.root.getElementById('feedback-overlay');
+    this.scoreElement = this.root.querySelector('.score-value') || this.root.getElementById('score');
+    this.timeElement = this.root.querySelector('.time-value') || this.root.getElementById('time');
+    this.livesContainer = this.root.querySelector('.lives-container') || this.root.getElementById('lives-container');
 
     // Dev State (Persistent across restarts)
     this.devGunMode = false;
+    this.isInputEnabled = true; // For AI or Disabled Player
   }
 
   start(config = {}) {
     if (this.isGameActive) return;
 
     this.isGameActive = true;
+    this.isInputEnabled = config.isInputEnabled ?? true; // Default true
     this.level = config.startLevel || 1;
     this.score = (this.level - 1) * 1000;
     this.timeLimit = 60;
     this.playerPos = 1;
-    this.missedCount = 0; // Track missed fruits
-    this.spawningPaused = false; // Level transition logic
-    this.bombsSpawnedInLevel = 0; // Track bombs per level
+    this.missedCount = 0;
+    this.spawningPaused = false;
+    this.bombsSpawnedInLevel = 0;
 
     // Adjust Speed/Rate based on start level
     const levelCap = Math.min(this.level, 9);
-    // Level 1: Speed 3, Rate 1500
-    // Level 9: Speed 11, Rate 700
     this.baseSpeed = 3 + (levelCap - 1);
     this.spawnRate = 1500 - ((levelCap - 1) * 100);
 
@@ -59,19 +69,12 @@ class GameEngine {
     this.isBossActive = false;
     this.bossHP = 15;
     this.bossMaxHP = 15;
-    this.bossEntity = null; // { x, y, direction, element, elementHP }
-
-    // Start Boss if level >= 15
-    if (this.level >= 15) {
-      // Logic handled in startBossFight calling later or immediate?
-      // We can defer slightly or set it here.
-      // startBossFight sets specific rate/speed for boss.
-    }
+    this.bossEntity = null;
 
     // Reward Logic
     this.maxMisses = 2; // Default
     this.gunActive = false;
-    this.hasGun = false; // Stored gun
+    this.hasGun = false;
     this.gunTimer = null;
 
     if (config.reward === 'life') {
@@ -79,9 +82,9 @@ class GameEngine {
       this.showFeedback("Bonus Life Active! ❤️");
     } else if (config.reward === 'gun') {
       this.hasGun = true;
-      this.showFeedback("Gun Ready! Press 'W' to use 🔫", true);
+      this.showFeedback("Gun Ready! Press 'W' 🔫", true);
     } else {
-      this.showFeedback(`Level ${this.level} Start!`);
+      // this.showFeedback(`Level ${this.level} Start!`);
     }
 
     // Boss Check Immediate
@@ -89,28 +92,26 @@ class GameEngine {
       setTimeout(() => this.startBossFight(), 100);
     }
 
-    // UI Elements
-    this.container = document.getElementById('game-container');
-    this.playerElement = document.getElementById('player');
-    this.feedbackElement = document.getElementById('feedback-overlay');
-    this.scoreElement = document.getElementById('score');
-    this.timeElement = document.getElementById('time');
+    // Input Handling (Only ONE global listener should exist or scoped?)
+    // Issue: window.keydown is global. 
+    // If we have 2 engines, both receive 'A'. P2 (AI) should ignore keys.
+    // Solution: Check `this.isInputEnabled`.
 
-    // Input Handling
+    // Remove old listener if any to prevent duplicates?
+    if (this.handleInput) window.removeEventListener('keydown', this.handleInput);
+
     this.handleInput = (e) => {
-      // Gun Activation
-      // Check devGunMode OR standard hasGun
+      if (!this.isGameActive || !this.isInputEnabled) return;
+
       const canUseGun = (this.hasGun || this.devGunMode) && !this.gunActive;
 
       if ((e.key === 'w' || e.key === 'W' || e.key === 'ㅈ') && canUseGun) {
         this.activateGun();
         if (!this.devGunMode) {
-          this.hasGun = false; // Consume gun only if not in dev mode
+          this.hasGun = false;
         }
       }
 
-      // Movement (Keyboard Mode)
-      // Only if Game is Active? Or anytime? Ideally only during active game but pre-start checks ok.
       const key = e.key.toLowerCase();
       let targetPos = this.playerPos;
 
@@ -125,12 +126,12 @@ class GameEngine {
     };
     window.addEventListener('keydown', this.handleInput);
 
-    // Clear existing items from DOM
-    const existingItems = document.querySelectorAll('.item');
+    // Clear existing items from DOM locally
+    const existingItems = this.container.querySelectorAll('.item');
     existingItems.forEach(el => el.remove());
 
     // Clear Boss Elements if any
-    const existingBoss = document.getElementById('boss-container');
+    const existingBoss = this.container.querySelector('.boss-container');
     if (existingBoss) existingBoss.remove();
 
     // Update Initial UI
@@ -145,8 +146,6 @@ class GameEngine {
     // Start Game Loop
     this.lastSpawnTime = Date.now();
     this.loop();
-
-    console.log("Game Started!");
   }
 
   stop(reason = "Time's Up!", isVictory = false) {
@@ -164,37 +163,33 @@ class GameEngine {
 
     this.showFeedback(reason, true);
 
-    // Victory Visuals
     if (isVictory) {
-      this.feedbackElement.style.color = "#4CAF50"; // Green for victory
+      this.feedbackElement.style.color = "#4CAF50";
       this.feedbackElement.style.fontSize = "40px";
     }
 
     if (this.onGameEnd) {
-      this.onGameEnd(this.score, this.level);
+      this.onGameEnd(this.score, this.level, isVictory, this); // Pass self to identify who ended
     }
   }
 
   startTimer() {
     this.gameTimer = setInterval(() => {
-      // If Boss is active, timer doesn't decrease (or acts differently? Maybe Time Limit for Boss?)
-      // Let's stop timer countdown during Boss Fight to focus on survival/combat
       if (!this.isBossActive) {
         this.timeLimit--;
-        this.timeLimit = Math.max(0, this.timeLimit); // Safety
+        this.timeLimit = Math.max(0, this.timeLimit);
         this.updateTimeUI();
       }
 
-      // Level up / Difficulty increase (Pre-Boss)
       if (!this.isBossActive) {
         if (this.timeLimit === 30) {
-          this.triggerLevelTransition(1000, 4, "Warning: Speed Up!");
+          // this.triggerLevelTransition(1000, 4, "Warning: Speed Up!");
         } else if (this.timeLimit === 10) {
-          this.triggerLevelTransition(500, 6, "Warning: Fever Time!");
+          // this.triggerLevelTransition(500, 6, "Warning: Fever Time!");
         }
 
         if (this.timeLimit <= 0) {
-          this.stop("Game Over!");
+          this.stop("Time Over!");
         }
       }
     }, 1000);
@@ -202,50 +197,44 @@ class GameEngine {
 
   triggerLevelTransition(newRate, newSpeed, message) {
     this.spawningPaused = true;
-    this.showFeedback(message, true); // Persist message
+    this.showFeedback(message, true);
 
     setTimeout(() => {
       this.spawningPaused = false;
       this.spawnRate = newRate;
       this.baseSpeed = newSpeed;
-      this.showFeedback("GO!!", false); // Clear message
-    }, 2000); // 2 seconds pause
+      this.showFeedback("GO!!", false);
+    }, 2000);
   }
 
   startBossFight() {
     if (this.isBossActive) return;
     this.isBossActive = true;
-    this.spawningPaused = false; // Ensure items spawn
-    // Level 9 Equivalent:
-    // Speed starts at 3. Level 9 (+8) = 11.
-    // SpawnRate starts at 1500. Level 9 (-800) = 700.
+    this.spawningPaused = false;
     this.spawnRate = 700;
     this.baseSpeed = 11;
 
-    this.showFeedback("BOSS FIGHT! 🐉\nCatch Rockets 🚀!", true);
+    this.showFeedback("BOSS FIGHT! 🐉\nCatch Rockets!", true);
 
-    // Create Boss Visuals
     const bossContainer = document.createElement('div');
-    bossContainer.id = 'boss-container';
+    bossContainer.classList.add('boss-container'); // Use class
     bossContainer.style.position = 'absolute';
     bossContainer.style.top = '10px';
     bossContainer.style.left = '50%';
     bossContainer.style.transform = 'translateX(-50%)';
-    bossContainer.style.width = '300px'; // Wider for better HP visibility
+    bossContainer.style.width = '300px';
     bossContainer.style.textAlign = 'center';
     bossContainer.style.zIndex = '10';
 
-    // HP Bar
     const hpBar = document.createElement('div');
     hpBar.style.width = '100%';
-    hpBar.style.height = '20px'; // Thicker
+    hpBar.style.height = '20px';
     hpBar.style.backgroundColor = 'red';
     hpBar.style.border = '2px solid white';
     hpBar.style.marginBottom = '5px';
     hpBar.style.transition = 'width 0.2s';
     bossContainer.appendChild(hpBar);
 
-    // Dragon Icon
     const dragon = document.createElement('div');
     dragon.textContent = '🐉';
     dragon.style.fontSize = '80px';
@@ -254,9 +243,9 @@ class GameEngine {
     this.container.appendChild(bossContainer);
 
     this.bossEntity = {
-      x: 50, // Percentage 50%
+      x: 50,
       y: 0,
-      direction: 1, // 1: right, -1: left
+      direction: 1,
       element: bossContainer,
       hpElement: hpBar,
       elementDragon: dragon
@@ -267,16 +256,12 @@ class GameEngine {
     if (!this.isBossActive) return;
 
     this.bossHP--;
-    console.log(`Boss Damaged! HP: ${this.bossHP}/${this.bossMaxHP}`);
-
     const hpPercent = (this.bossHP / this.bossMaxHP * 100);
     this.bossEntity.hpElement.style.width = hpPercent + '%';
 
-    // Flash Boss
     this.bossEntity.elementDragon.style.opacity = 0.5;
     setTimeout(() => this.bossEntity.elementDragon.style.opacity = 1, 100);
 
-    // Floating Damage Text
     const dmgText = document.createElement('div');
     dmgText.textContent = "💥 -1";
     dmgText.style.position = 'absolute';
@@ -306,32 +291,25 @@ class GameEngine {
 
     const now = Date.now();
 
-    // 0. Boss Movement
     if (this.isBossActive && this.bossEntity) {
       this.updateBossMovement();
     }
 
-    // 1. Spawn Item
     if (!this.spawningPaused && now - this.lastSpawnTime > this.spawnRate) {
       this.spawnItem();
       this.lastSpawnTime = now;
     }
 
-    // 2. Update Items
     this.updateItems();
-
-    // 3. Collision Detection
     this.checkCollisions();
 
     this.gameLoopId = requestAnimationFrame(() => this.loop());
   }
 
   updateBossMovement() {
-    // Simple sine wave or bounce
-    const speed = 0.5; // Movement speed percent per frame
+    const speed = 0.5;
     this.bossEntity.x += this.bossEntity.direction * speed;
 
-    // Bounce
     if (this.bossEntity.x > 90 || this.bossEntity.x < 10) {
       this.bossEntity.direction *= -1;
     }
@@ -343,25 +321,11 @@ class GameEngine {
     let lane, startXPercent;
 
     if (this.isBossActive && this.bossEntity) {
-      // Spawn from Boss Mouth
-      // Convert Boss X % to Lane Index approximation for logic, or just use free coordinates?
-      // Game engine uses Lanes (0, 1, 2) for player logic. Items need to align with lanes to be catchable easily?
-      // Or free fall?
-      // Let's align to nearest lane for gameplay simplicity, or just set raw left and check collision by generic rect?
-      // Current collision logic `checkCollisions` uses `item.lane`. This binds us to lanes.
-      // We should calculate which lane the Boss is closest to.
-
-      // Boss X: 0 ~ 100.
-      // Lanes: 0 (16%), 1 (50%), 2 (83%).
-      // ranges: 0-33, 33-66, 66-100.
       if (this.bossEntity.x < 33) lane = 0;
       else if (this.bossEntity.x < 66) lane = 1;
       else lane = 2;
-
-      startXPercent = this.bossEntity.x; // Visual origin
     } else {
       lane = Math.floor(Math.random() * 3);
-      startXPercent = (lane * 33.33 + 16.66);
     }
 
     const typeRoll = Math.random();
@@ -369,22 +333,18 @@ class GameEngine {
     let symbol = '🍎';
     let score = 100;
 
-    // Boss Phase Spawning
     if (this.isBossActive) {
-      // 30% Rocket, 30% Bomb, 40% Fruit
       if (typeRoll < 0.3) {
         type = 'rocket'; symbol = '🚀'; score = 0;
       } else if (typeRoll < 0.6) {
         type = 'bomb'; symbol = '💣'; score = 0;
       } else {
-        // Random Fruit
         const f = Math.random();
         if (f < 0.5) { type = 'apple'; symbol = '🍎'; score = 100; }
         else if (f < 0.8) { type = 'banana'; symbol = '🍌'; score = 200; }
         else { type = 'dragon'; symbol = '🌵'; score = 300; }
       }
     } else {
-      // Normal Phase
       if (typeRoll < 0.5) {
         type = 'apple'; symbol = '🍎'; score = 100;
       } else if (typeRoll < 0.8) {
@@ -396,10 +356,8 @@ class GameEngine {
       }
     }
 
-    // Check Bomb Limit (Max 5 per level)
     if (type === 'bomb') {
       if (this.bombsSpawnedInLevel >= 5) {
-        // Revert to Apple if limit reached
         type = 'apple'; symbol = '🍎'; score = 100;
       } else {
         this.bombsSpawnedInLevel++;
@@ -408,39 +366,15 @@ class GameEngine {
 
     const itemEl = document.createElement('div');
     itemEl.classList.add('item');
-    // If Boss, start from Boss X, then animate to Lane X?
-    // Or just fall straight?
-    // User said "From Dragon Mouth".
-    // If it falls straight from Boss X (e.g. 45%), and Player is in Center Lane (50%), is it caught?
-    // Lane width logic in collision: `checkCollisions` uses strict `item.lane === this.playerPos`.
-    // So we MUST assign a lane.
-    // Visual tweak: Start at Boss X, transition to Lane X quickly?
-    // Or Boss just snaps spawn to lane center.
-    // Let's do: Start at Boss X, drift to Lane Center.
-
-    // For now, simple: Boss aligns to lane for spawn logic basically. 
-    // Visual start:
-    // itemEl.style.left = startXPercent + '%'; // Start at dragon
-    // But logic needs `lane`.
-
-    // Animation idea:
-    // Start at Boss X. 
-    // In updateItems, lerp X to Lane Index X?
-    // Or just let it fall at Lane X immediately (simplest).
-    // Let's use strict Lane Center to avoid collision ambiguity.
-    // The Boss moves, so "Coming from mouth" might just mean "Spawns when Boss is vaguely over that lane".
 
     itemEl.style.left = (lane * 33.33 + 16.66) + '%';
-    // Override if we want to experiment with `startXPercent` but it might break collision standard.
-    // Let's stick to standard lane centers for reliability.
-
     itemEl.style.transform = 'translateX(-50%)';
-    itemEl.style.top = this.isBossActive ? '60px' : '-60px'; // Dragon is at top ~10px + height. Spawn lower.
+    itemEl.style.top = this.isBossActive ? '60px' : '-60px';
 
     if (type === 'dragon') {
       itemEl.innerHTML = `<img src="assets/dragon_fruit.svg" alt="🐉" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.textContent='🐉'">`;
     } else if (type === 'rocket') {
-      itemEl.style.fontSize = '40px'; // Bigger rocket
+      itemEl.style.fontSize = '40px';
       itemEl.textContent = symbol;
     } else {
       itemEl.textContent = symbol;
@@ -461,9 +395,8 @@ class GameEngine {
 
   activateGun() {
     this.gunActive = true;
-    this.showFeedback("Auto Gun Active! 🔫", true);
+    this.showFeedback("Auto Gun! 🔫", true);
 
-    // Create Visual Gun Element
     if (!this.gunElement) {
       this.gunElement = document.createElement('div');
       this.gunElement.textContent = "🔫";
@@ -481,7 +414,7 @@ class GameEngine {
 
     this.gunTimer = setTimeout(() => {
       this.gunActive = false;
-      this.showFeedback("Gun Deactivated", false);
+      this.showFeedback("Gun End", false);
       this.gunTimer = null;
       if (this.gunElement) {
         this.gunElement.remove();
@@ -494,35 +427,29 @@ class GameEngine {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
 
-      // Gun Logic: Auto collect/destroy if visible (y > 0)
-      // Gun can now target Rockets too (User request)
       if (this.gunActive && item.y > 0) {
         if (this.gunElement) {
           const laneCenter = (item.lane * 33.33 + 16.66);
           this.gunElement.style.left = `calc(${laneCenter}% - 15px)`;
         }
         this.fireBullet(item, i);
-        continue; // Bullet handles destruction
+        continue;
       }
 
       item.y += item.speed;
       item.element.style.top = item.y + 'px';
 
-      // Remove if out of bounds
       if (item.y > 500) {
         if (item.type !== 'bomb' && item.type !== 'rocket') {
-          // Missed Fruit
           this.missedCount++;
           this.updateLivesUI();
           this.showFeedback(`Missed!`);
 
           if (this.missedCount >= this.maxMisses) {
-            this.stop(`Game Over! (${this.maxMisses} Misses)`);
+            this.stop(`Game Over!`);
             return;
           }
         }
-        // Rockets just pass by if missed.
-
         item.element.remove();
         this.items.splice(i, 1);
       }
@@ -567,9 +494,7 @@ class GameEngine {
       const itemBottom = item.y + 60;
       const itemTop = item.y;
 
-      // Check Lane
       if (item.lane === this.playerPos) {
-        // Check Y overlap
         if (itemBottom > playerTop + 10 && itemTop < playerBottom - 10) {
           this.handleCollision(item, i);
         }
@@ -578,19 +503,15 @@ class GameEngine {
   }
 
   handleCollision(item, index) {
-    // Remove item
     item.element.remove();
     this.items.splice(index, 1);
 
     if (item.type === 'rocket') {
-      // Damage Boss
       this.damageBoss();
-      // Feedback
       this.showFeedback("ATTACK! 💥");
     } else if (item.type === 'bomb' && !this.gunActive) {
       this.stop("BOMB! Game Over");
     } else {
-      // Score (Fruit) or Gunned Bomb
       let points = item.score;
       let color = '#ffeb3b';
 
@@ -599,10 +520,8 @@ class GameEngine {
         color = '#448AFF';
       }
 
-      // Add Score logic
       this.addScore(points);
 
-      // Feedback
       const popup = document.createElement('div');
       popup.textContent = `+${points}`;
       popup.style.position = 'absolute';
@@ -612,7 +531,7 @@ class GameEngine {
       popup.style.fontWeight = 'bold';
       popup.style.fontSize = '24px';
       popup.style.transition = 'top 0.5s, opacity 0.5s';
-      if (item.type !== 'bomb') this.container.appendChild(popup); // Don't show +200 on boss bomb kill maybe? Or yes?
+      if (item.type !== 'bomb') this.container.appendChild(popup);
 
       setTimeout(() => {
         popup.style.top = '350px';
@@ -623,48 +542,27 @@ class GameEngine {
     }
   }
 
-  damageBoss() {
-    if (!this.isBossActive) return;
-
-    this.bossHP--;
-    this.bossEntity.hpElement.style.width = (this.bossHP / this.bossMaxHP * 100) + '%';
-
-    // Flash Boss
-    this.bossEntity.elementDragon.style.opacity = 0.5;
-    setTimeout(() => this.bossEntity.elementDragon.style.opacity = 1, 100);
-
-    if (this.bossHP <= 0) {
-      this.victory();
-    }
-  }
-
   victory() {
-    // 1. Stop Game Loop fully
     this.isGameActive = false;
     clearInterval(this.gameTimer);
     cancelAnimationFrame(this.gameLoopId);
 
-    // Cleanup Input
     if (this.handleInput) {
       window.removeEventListener('keydown', this.handleInput);
       this.handleInput = null;
     }
 
-    // 2. Visual Effects
     if (this.bossEntity) {
       this.bossEntity.element.innerHTML = "💥";
       setTimeout(() => this.bossEntity.element.remove(), 1000);
     }
 
-    // 3. Show Ending Screen after short delay
-    setTimeout(() => {
-      const endingOverlay = document.getElementById('ending-overlay');
-      if (endingOverlay) {
-        endingOverlay.style.display = 'flex';
-      } else {
-        alert("YOU WIN! 🏆\n(Ending Screen Missing)");
-      }
-    }, 1000);
+    // Victory callback logic
+    // We cannot assume global overlay works for 2 players cleanly yet.
+    // For now, emit callback.
+    if (this.onGameEnd) {
+      this.onGameEnd(this.score, this.level, true, this);
+    }
   }
 
   updatePlayerPosition() {
@@ -694,25 +592,21 @@ class GameEngine {
 
     if (newLevel > this.level) {
       this.level = newLevel;
-      this.bombsSpawnedInLevel = 0; // Reset bomb count for new level
+      this.bombsSpawnedInLevel = 0;
 
-      // Cap Speed at Level 9
-      // Level 1 = 3. Level 9 = 11.
       if (this.level <= 9) {
         this.baseSpeed += 1;
       }
-      this.timeLimit = 60; // Reset time to 60s.
+      // PVP: Usually reset Level for both? Or keep leveling up independently?
+      // Independent level up is fun.
+      this.timeLimit = 60;
 
-      // Check Level 15 Boss
       if (this.level >= 15 && !this.isBossActive) {
         this.startBossFight();
       } else if (!this.isBossActive) {
-        // Standard Level Up
-        // Visual Feedback
-        this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL ${this.level}!\nSPEED UP!\nTIME RESET!`);
+        // this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL UP!`);
         this.updateTimeUI();
 
-        // Cap speed/rate at Level 9
         if (this.level <= 9) {
           if (this.spawnRate > 500) this.spawnRate -= 100;
         }
@@ -720,6 +614,7 @@ class GameEngine {
     }
 
     this.updateScoreUI();
+    if (this.onScoreChange) this.onScoreChange(this.score, this.level);
   }
 
   updateScoreUI() {
@@ -731,14 +626,13 @@ class GameEngine {
   }
 
   updateLivesUI() {
-    const container = document.getElementById('lives-container');
-    if (!container) return;
+    if (!this.livesContainer) return;
     const remaining = Math.max(0, this.maxMisses - this.missedCount);
     let hearts = "";
     for (let i = 0; i < remaining; i++) {
       hearts += "❤️";
     }
-    container.textContent = hearts;
+    this.livesContainer.textContent = hearts;
   }
 
   showFeedback(text, persist = false) {
@@ -754,6 +648,7 @@ class GameEngine {
 
   setScoreChangeCallback(cb) { this.onScoreChange = cb; }
   setGameEndCallback(cb) { this.onGameEnd = cb; }
+
 }
 
 window.GameEngine = GameEngine;

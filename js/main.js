@@ -7,11 +7,13 @@
 
 // 전역 변수
 let poseEngine;
-let gameEngine;
+let gameEngine; // P1 (or Single)
+let gameEngineP2; // P2 (AI)
+let aiController;
 let stabilizer;
 let ctx;
 let labelContainer;
-let useKeyboard = false; // Flag for keyboard mode
+let useKeyboard = false;
 
 function enableKeyboardMode() {
   useKeyboard = true;
@@ -23,79 +25,60 @@ function enableKeyboardMode() {
 window.enableKeyboardMode = enableKeyboardMode;
 
 /**
- * 애플리케이션 초기화
+ * 애플리케이션 초기화 (Single Player / Default)
  */
 async function init() {
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
-
   startBtn.disabled = true;
 
   try {
     const maxPredictionDiv = document.getElementById("max-prediction");
 
     // 3. GameEngine 초기화 (공통)
-    // Preserve Dev Mode flag if re-initializing
     let savedDevMode = false;
     if (gameEngine) {
       savedDevMode = gameEngine.devGunMode;
     }
-    gameEngine = new GameEngine();
+    // Single Player: Use document as root (backwards compat)
+    gameEngine = new GameEngine(document);
     gameEngine.devGunMode = savedDevMode;
 
     if (useKeyboard) {
-      // Keyboard Mode Initialization
       maxPredictionDiv.innerHTML = "키보드 모드 준비 완료!";
       document.getElementById("label-container").innerHTML = "📷 카메라 꺼짐";
-
-      // Skip webcam/pose setup
       poseEngine = null;
       stabilizer = null;
-
-      // Enable Game Start directly
       stopBtn.disabled = false;
       document.getElementById("gameStartBtn").disabled = false;
-
     } else {
-      // Normal Camera Mode Initialization
       maxPredictionDiv.innerHTML = "모델 로딩 중...";
-
-      // 1. PoseEngine 초기화
       poseEngine = new PoseEngine("./my_model/");
       const { maxPredictions, webcam } = await poseEngine.init({
         size: 200,
         flip: true
       });
-
       maxPredictionDiv.innerHTML = "카메라 시작 중...";
-
-      // 2. Stabilizer 초기화
       stabilizer = new PredictionStabilizer({
         threshold: 0.7,
         smoothingFrames: 3
       });
 
-      // 4. 캔버스 설정
       const canvas = document.getElementById("canvas");
       canvas.width = 200;
       canvas.height = 200;
       ctx = canvas.getContext("2d");
 
-      // 5. Label Container 설정
       labelContainer = document.getElementById("label-container");
-      labelContainer.innerHTML = ""; // 초기화
+      labelContainer.innerHTML = "";
       for (let i = 0; i < maxPredictions; i++) {
         labelContainer.appendChild(document.createElement("div"));
       }
 
-      // 6. PoseEngine 콜백 설정
       poseEngine.setPredictionCallback(handlePrediction);
       poseEngine.setDrawCallback(drawPose);
-
-      // 7. PoseEngine 시작
       poseEngine.start();
       maxPredictionDiv.innerHTML = "준비 완료!";
-
       stopBtn.disabled = false;
       document.getElementById("gameStartBtn").disabled = false;
     }
@@ -105,6 +88,173 @@ async function init() {
     alert("초기화 실패!\n오류 내용: " + error.message);
     startBtn.disabled = false;
   }
+}
+
+/**
+ * PVP Mode Start Logic
+ */
+async function startPVP() {
+  // 1. Get Difficulty
+  const difficultyEls = document.getElementsByName('difficulty');
+  let diff = 'medium';
+  for (let el of difficultyEls) {
+    if (el.checked) diff = el.value;
+  }
+
+  // 2. Hide Modal & Setup UI
+  closeRuleModal();
+  document.getElementById('roulette-overlay').style.display = 'none'; // Ensure
+
+  // Clear Main Area to inject 2 boards
+  // We need to preserve 'controls' and 'debug-area' but replace 'game-info' and 'game-container'
+  // Or simpler: Hide existing, append new 'main-wrapper' if not exists, or populate it.
+
+  // existing single player elements:
+  const singleInfo = document.querySelector('.game-info');
+  const singleContainer = document.getElementById('game-container');
+  if (singleInfo) singleInfo.style.display = 'none';
+  if (singleContainer) singleContainer.style.display = 'none';
+  const heading = document.querySelector('h1');
+  if (heading) heading.textContent = "⚔️ YOU  vs  AI 🤖";
+
+  let wrapper = document.getElementById('main-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.id = 'main-wrapper';
+    // Insert after h1 (or at top of body, move down)
+    const ref = document.querySelector('.controls');
+    ref.parentNode.insertBefore(wrapper, ref);
+  }
+  wrapper.innerHTML = ""; // Clear
+
+  // 3. Generate DOM for P1 and P2
+  const p1DOM = createGameDOM("Player 1 (YOU)");
+  const p2DOM = createGameDOM(`AI (${diff.toUpperCase()})`);
+
+  wrapper.appendChild(p1DOM.root);
+  wrapper.appendChild(p2DOM.root);
+
+  // 4. Initialize Engines
+  gameEngine = new GameEngine(p1DOM.root);
+  gameEngineP2 = new GameEngine(p2DOM.root);
+
+  // Setup callbacks
+  gameEngine.setGameEndCallback((score, level, victory, engine) => handlePVPEnd(score, true));
+  gameEngineP2.setGameEndCallback((score, level, victory, engine) => handlePVPEnd(score, false));
+
+  // P1 Input: Keyboard or Camera?
+  // User didn't specify. Assuming Keyboard is favored for PVP or Camera is fine?
+  // Taking context: "PVP 버튼을 ... 띄워줘".
+  // If we are in "Camera Start" mode, use Camera. If "Keyboard Mode", use Keyboard.
+  // We reuse global 'poseEngine' and 'handlePrediction' logic, but direct it to 'gameEngine'.
+  // gameEngine handles its own input for Keyboard if enabled.
+
+  // For P2 (AI), input must be disabled (Keyboard listener off)
+  // We refactored GameEngine to have `isInputEnabled` flag.
+  // P1 needs input. P2 does not (AI controls position manually).
+
+  // 5. Initialize AI
+  aiController = new AIEngine(gameEngineP2, diff);
+
+  // 6. Start Games
+  // Wait for countdown? 
+  // Let's just start.
+
+  // Need to ensure camera/keyboard is initialized?
+  // If user didn't click "Camera Start", we have no input mechanism.
+  // Maybe prompt to select mode if not ready?
+  // Or auto-enable keyboard for PVP convenience?
+  if (!poseEngine && !useKeyboard) {
+    const conf = confirm("카메라가 켜지지 않았습니다. 키보드 모드로 시작할까요?");
+    if (conf) {
+      enableKeyboardMode();
+      // init() is for single player usually but sets up flags.
+      // We just set useKeyboard=true.
+    } else {
+      alert("카메라를 먼저 켜주세요 (Camera Start)");
+      location.reload();
+      return;
+    }
+  }
+
+  if (!useKeyboard && poseEngine) {
+    // Connect Pose to P1
+    // handlePrediction calls gameEngine.onPoseDetected. 
+    // Global variable 'gameEngine' is now P1. So it works!
+  }
+
+  gameEngine.start({ isInputEnabled: true, startLevel: 1 });
+  // P2: Input disabled (AI controlled)
+  gameEngineP2.start({ isInputEnabled: false, startLevel: 1 });
+  aiController.start();
+
+  document.getElementById('gameStartBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('stopBtn').onclick = stopPVP;
+}
+
+function createGameDOM(titleText) {
+  const root = document.createElement('div');
+  root.classList.add('game-instance');
+  // Styling handled by CSS
+
+  const html = `
+     <h3 style="margin:5px 0; color:#00838f;">${titleText}</h3>
+     <div class="game-info" style="scale:0.9; margin-bottom:5px;">
+       <div>점수: <span class="score-value">0</span></div>
+       <div>남은 시간: <span class="time-value">60</span>s</div>
+       <div class="lives-container" style="color: red;">❤️❤️</div>
+     </div>
+     <div class="game-board">
+       <div class="lane" id="lane-0"><div class="lane-label">LEFT</div></div>
+       <div class="lane" id="lane-1"><div class="lane-label">CENTER</div></div>
+       <div class="lane" id="lane-2"><div class="lane-label">RIGHT</div></div>
+       <div class="player"></div>
+       <div class="feedback-overlay"></div>
+     </div>
+  `;
+  root.innerHTML = html;
+  return { root };
+}
+
+function handlePVPEnd(score, isP1) {
+  // One player died or finished.
+  // Logic: If P1 dies, P2 wins. If P2 dies, P1 wins.
+  // If Time Over? Compare scores.
+
+  // Stop everyone
+  if (aiController) aiController.stop();
+  if (gameEngine.isGameActive) gameEngine.stop("Game Over", false);
+  if (gameEngineP2.isGameActive) gameEngineP2.stop("Game Over", false);
+
+  const p1Score = gameEngine.score;
+  const p2Score = gameEngineP2.score;
+
+  let resultMsg = "";
+  if (!isP1) {
+    // AI Died
+    resultMsg = "YOU WIN! 🏆\n(AI Game Over)";
+  } else {
+    // Player Died
+    resultMsg = "YOU LOSE... 💀\n(Game Over)";
+  }
+
+  // Check scores if both alive (Time Limit case?)
+  // GameEngine stops itself on Time Limit.
+  // If reason was Time Limit?
+
+  // Simple alert for now
+  setTimeout(() => {
+    alert(resultMsg + `\n\nFinal Score:\nYOU: ${p1Score}\nAI: ${p2Score}`);
+    location.reload();
+  }, 500);
+}
+
+function stopPVP() {
+  if (aiController) aiController.stop();
+  if (gameEngine) gameEngine.stop("PVP Stopped");
+  if (gameEngineP2) gameEngineP2.stop("PVP Stopped");
+  location.reload();
 }
 
 /**
@@ -133,25 +283,19 @@ function stop() {
 
 /**
  * 예측 결과 처리 콜백
- * @param {Array} predictions - TM 모델의 예측 결과
- * @param {Object} pose - PoseNet 포즈 데이터
  */
 function handlePrediction(predictions, pose) {
-  // 1. Stabilizer로 예측 안정화
   const stabilized = stabilizer.stabilize(predictions);
 
-  // 2. Label Container 업데이트
   for (let i = 0; i < predictions.length; i++) {
     const classPrediction =
       predictions[i].className + ": " + predictions[i].probability.toFixed(2);
     labelContainer.childNodes[i].innerHTML = classPrediction;
   }
 
-  // 3. 최고 확률 예측 표시
   const maxPredictionDiv = document.getElementById("max-prediction");
   maxPredictionDiv.innerHTML = stabilized.className || "감지 중...";
 
-  // 4. GameEngine에 포즈 전달 (게임 모드일 경우)
   if (gameEngine && gameEngine.isGameActive && stabilized.className) {
     gameEngine.onPoseDetected(stabilized.className);
   }
@@ -159,13 +303,11 @@ function handlePrediction(predictions, pose) {
 
 /**
  * 포즈 그리기 콜백
- * @param {Object} pose - PoseNet 포즈 데이터
  */
 function drawPose(pose) {
   if (poseEngine.webcam && poseEngine.webcam.canvas) {
     ctx.drawImage(poseEngine.webcam.canvas, 0, 0);
 
-    // 키포인트와 스켈레톤 그리기
     if (pose) {
       const minPartConfidence = 0.5;
       tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
@@ -174,21 +316,12 @@ function drawPose(pose) {
   }
 }
 
-// 게임 모드 시작 함수 (선택적 - 향후 확장용)
+// 기존 startGameMode (Single Player)
 function startGameMode(config) {
   if (!gameEngine) {
     console.warn("GameEngine이 초기화되지 않았습니다.");
     return;
   }
-
-  gameEngine.setScoreChangeCallback((score, level) => {
-    console.log(`점수: ${score}, 레벨: ${level}`);
-    // UI 업데이트 로직 추가 가능
-    // 게임 종료 시 alert를 여기서 호출하거나, gameEngine에서 별도의 gameEndCallback을 제공하는 것이 좋습니다.
-    // 현재 finalScore, finalLevel 변수는 이 스코프에 정의되어 있지 않습니다.
-    // alert(`게임 종료!\n최종 점수: ${score}\n최종 레벨: ${level}`);
-  });
-
   gameEngine.start(config);
 }
 
@@ -207,15 +340,11 @@ function spinRoulette() {
   isSpinning = true;
   document.getElementById('spin-btn').disabled = true;
 
-  // Weighted Probabilities: Kkwang 60%, Life 30%, Gun 10%
-  // 0~59: Kkwang, 60~89: Life, 90~99: Gun
   const rand = Math.floor(Math.random() * 100);
   let targetType = 'kkwang';
   if (rand >= 90) targetType = 'gun';
   else if (rand >= 60) targetType = 'life';
 
-  // Find matching segments
-  // 0:Kwang, 1:Life, 2:Kwang, 3:Life, 4:Kwang, 5:Kwang, 6:Life, 7:Kwang, 8:Kwang, 9:Gun
   const map = {
     'kkwang': [0, 2, 4, 5, 7, 8],
     'life': [1, 3, 6],
@@ -225,32 +354,12 @@ function spinRoulette() {
   const candidates = map[targetType];
   const segmentIndex = candidates[Math.floor(Math.random() * candidates.length)];
 
-  // Calculate Angle to land on this segment
-  // Segment i is at (i*36) ~ (i+1)*36 degrees. Center is i*36 + 18.
-  // Pointer is at Top (0 deg visual).
-  // To land, we need rotation R such that (R % 360) places segment at Top.
-  // If Segment is at Angle A (center), we want final wheel rotation to be (360 - A) (or -A).
-  // Let's add multiple full spins (5 * 360).
-  // Target Angle relative to wheel 0: centerAngle = segmentIndex * 36 + 18.
-  // Wheel Rotation Needed = (360 - centerAngle) + extraSpins.
-  // Add small random noise (-10 to +10) for realism
-
   const extraSpins = 360 * 5;
   const centerAngle = segmentIndex * 36 + 18;
   const noise = Math.floor(Math.random() * 20) - 10;
   const targetRotation = (360 - centerAngle) + extraSpins + noise;
 
   const wheel = document.getElementById('roulette-wheel');
-  // We must accumulate rotation to avoid rewinding
-  // Current rotation is tracked? Actually if we just set style it might snap if we don't track.
-  // But since we spin once per game usually, handled by global var in previous code?
-  // Let's reset style or just set it. A fresh game reload resets JS state usually.
-  // But let's assume persistent JS state if single page.
-
-  // Adjust to add to current
-  const currentRot = getCurrentRotation(wheel);
-  // Just simple: 3600 + target is enough for one spin.
-  // Let's use the calculated value.
 
   wheel.style.transform = `rotate(${targetRotation}deg)`;
 
@@ -276,21 +385,18 @@ function spinRoulette() {
   }, 3100);
 }
 
-function getCurrentRotation(el) {
-  // Helper not strictly needed if we just set new value large enough
-  return 0;
-}
+function getCurrentRotation(el) { return 0; }
 
 window.startGameMode = startGameMode;
 window.showRoulette = showRoulette;
 window.spinRoulette = spinRoulette;
+window.startPVP = startPVP;
 
 // Dev Tools
 async function handleTesterBtn() {
   const password = prompt("비밀번호를 입력하세요:");
-  if (!password) return; // User cancelled
+  if (!password) return;
 
-  // Check availability, if not, auto-init as Keyboard Mode
   if (!gameEngine) {
     console.log("Tester Mode: Auto-initializing GameEngine (Keyboard Mode)");
     enableKeyboardMode();
@@ -303,7 +409,6 @@ async function handleTesterBtn() {
   }
 
   if (password === '0011') {
-    // Level Selection
     let inputLevel = prompt("이동할 레벨을 입력하세요 (1-15):", "15");
     if (!inputLevel) return;
 
@@ -316,27 +421,18 @@ async function handleTesterBtn() {
     alert(`비밀번호 확인: 레벨 ${targetLevel}로 이동합니다.`);
     closeRuleModal();
 
-    // Hide Roulette if it was somehow active
     document.getElementById('roulette-overlay').style.display = 'none';
 
-    // Force Start if not active
     if (!gameEngine.isGameActive) {
-      // Initialize with cheat settings for tester
-      gameEngine.devGunMode = true; // Tester always gets gun enabled? Or keep it specific?
-      // User request didn't specify changing cheat rules, just level selection.
-      // But previous 0011 implied cheats (high score, gun mode, etc).
-      // Let's keep devGunMode = true as it is "Tester" mode.
+      gameEngine.devGunMode = true;
     }
     gameEngine.devGunMode = true;
 
-    // Start with config
     gameEngine.start({ startLevel: targetLevel });
 
-    // Additional cheats
-    gameEngine.maxMisses = 5; // Tester bonus
+    gameEngine.maxMisses = 5;
     gameEngine.updateLivesUI();
   } else if (password === '7777') {
-    // Infinite Gun Mode
     alert("비밀번호 확인: 무한 총 모드 활성화! (W키 사용)");
     gameEngine.devGunMode = true;
   } else {
@@ -350,11 +446,8 @@ let ruleTimerInterval;
 let ruleTimeLeft = 20;
 
 window.onload = function () {
-  // Show modal, start timer
   const timerSpan = document.getElementById('rule-timer');
   const modal = document.getElementById('rule-modal');
-
-  // Disable camera start behind modal (visual only, z-index covers it)
 
   ruleTimerInterval = setInterval(() => {
     ruleTimeLeft--;

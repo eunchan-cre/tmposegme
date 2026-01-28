@@ -61,6 +61,18 @@
           &nbsp;&nbsp; 💩 <b>꽝</b>: 아쉽지만 다음 기회에...
         </p>
         <p>5. <b>탈락 조건</b>: 과일 <b>2개 이상</b> 놓치면 끝! (목숨 있으면 3개)</p>
+
+        <hr>
+        <h3>⚔️ PVP 대결 모드 (vs AI)</h3>
+        <div class="difficulty-selector">
+          <label><input type="radio" name="difficulty" value="easy" checked> 쉬움</label>
+          <label><input type="radio" name="difficulty" value="medium"> 중간</label>
+          <label><input type="radio" name="difficulty" value="hard"> 어려움</label>
+          <label><input type="radio" name="difficulty" value="hell"> 극악</label>
+        </div>
+        <button id="pvp-start-btn" onclick="startPVP()" style="width:100%; margin-top:10px; background:#e91e63;">🤖 AI와
+          대결하기</button>
+
       </div>
       <hr>
       <p style="font-size: 14px; color: #666; text-align: center;">잠시 후 게임이 시작됩니다...</p>
@@ -148,7 +160,9 @@
   <script src="js/stabilizer.js"></script>
   <script src="js/poseEngine.js"></script>
   <script src="js/gameEngine.js"></script>
+  <script src="js/aiEngine.js"></script>
   <script src="js/main.js"></script>
+
 
   <script>
     // Game specific global function for the button

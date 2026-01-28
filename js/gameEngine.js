@@ -50,6 +50,9 @@ class GameEngine {
     this.bossMaxHP = 10;
     this.bossEntity = null; // { x, y, direction, element, elementHP }
 
+    // Dev State
+    this.devGunMode = false;
+
     // Reward Logic
     this.maxMisses = 2; // Default
     this.gunActive = false;
@@ -76,9 +79,14 @@ class GameEngine {
     // Input Handling
     this.handleInput = (e) => {
       // Gun Activation
-      if ((e.key === 'w' || e.key === 'W' || e.key === 'ㅈ') && this.hasGun && !this.gunActive) {
+      // Check devGunMode OR standard hasGun
+      const canUseGun = (this.hasGun || this.devGunMode) && !this.gunActive;
+
+      if ((e.key === 'w' || e.key === 'W' || e.key === 'ㅈ') && canUseGun) {
         this.activateGun();
-        this.hasGun = false;
+        if (!this.devGunMode) {
+          this.hasGun = false; // Consume gun only if not in dev mode
+        }
       }
 
       // Movement (Keyboard Mode)

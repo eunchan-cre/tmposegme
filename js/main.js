@@ -279,6 +279,39 @@ window.startGameMode = startGameMode;
 window.showRoulette = showRoulette;
 window.spinRoulette = spinRoulette;
 
+// Dev Tools
+function handleTesterBtn() {
+  const password = prompt("비밀번호를 입력하세요:");
+  if (!gameEngine) {
+    alert("게임이 아직 초기화되지 않았습니다.");
+    return;
+  }
+
+  if (password === '0011') {
+    // Level 15 Boss Fight
+    alert("비밀번호 확인: 레벨 15 보스전으로 이동합니다.");
+    closeRuleModal();
+    if (!gameEngine.isGameActive) {
+      // Force start if not active
+      if (useKeyboard) {
+        document.getElementById("gameStartBtn").click(); // Trigger start logic
+        setTimeout(() => gameEngine.startBossFight(), 500);
+      } else {
+        alert("게임을 먼저 시작해주세요.");
+      }
+    } else {
+      gameEngine.startBossFight();
+    }
+  } else if (password === '7777') {
+    // Infinite Gun Mode
+    alert("비밀번호 확인: 무한 총 모드 활성화! (W키 사용)");
+    gameEngine.devGunMode = true;
+  } else {
+    alert("비밀번호가 틀렸습니다.");
+  }
+}
+window.handleTesterBtn = handleTesterBtn;
+
 // Rule Modal Logic
 let ruleTimerInterval;
 let ruleTimeLeft = 20;

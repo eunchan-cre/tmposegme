@@ -280,10 +280,19 @@ window.showRoulette = showRoulette;
 window.spinRoulette = spinRoulette;
 
 // Dev Tools
-function handleTesterBtn() {
+async function handleTesterBtn() {
   const password = prompt("비밀번호를 입력하세요:");
+  if (!password) return; // User cancelled
+
+  // Check availability, if not, auto-init as Keyboard Mode
   if (!gameEngine) {
-    alert("게임이 아직 초기화되지 않았습니다.");
+    console.log("Tester Mode: Auto-initializing GameEngine (Keyboard Mode)");
+    enableKeyboardMode();
+    await init();
+  }
+
+  if (!gameEngine) {
+    alert("게임 초기화에 실패했습니다.");
     return;
   }
 
@@ -291,14 +300,12 @@ function handleTesterBtn() {
     // Level 15 Boss Fight
     alert("비밀번호 확인: 레벨 15 보스전으로 이동합니다.");
     closeRuleModal();
+
+    // Ensure game is actually running
     if (!gameEngine.isGameActive) {
-      // Force start if not active
-      if (useKeyboard) {
-        document.getElementById("gameStartBtn").click(); // Trigger start logic
-        setTimeout(() => gameEngine.startBossFight(), 500);
-      } else {
-        alert("게임을 먼저 시작해주세요.");
-      }
+      document.getElementById("gameStartBtn").click(); // Trigger start logic
+      // Small delay to let start logic run
+      setTimeout(() => gameEngine.startBossFight(), 500);
     } else {
       gameEngine.startBossFight();
     }

@@ -31,6 +31,9 @@ class GameEngine {
     this.container = null;
     this.playerElement = null;
     this.feedbackElement = null;
+
+    // Dev State (Persistent across restarts)
+    this.devGunMode = false;
   }
 
   start(config = {}) {
@@ -46,12 +49,9 @@ class GameEngine {
 
     // Boss State
     this.isBossActive = false;
-    this.bossHP = 10;
-    this.bossMaxHP = 10;
+    this.bossHP = 50;
+    this.bossMaxHP = 50;
     this.bossEntity = null; // { x, y, direction, element, elementHP }
-
-    // Dev State
-    this.devGunMode = false;
 
     // Reward Logic
     this.maxMisses = 2; // Default

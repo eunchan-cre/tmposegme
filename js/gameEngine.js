@@ -49,8 +49,8 @@ class GameEngine {
 
     // Boss State
     this.isBossActive = false;
-    this.bossHP = 50;
-    this.bossMaxHP = 50;
+    this.bossHP = 15;
+    this.bossMaxHP = 15;
     this.bossEntity = null; // { x, y, direction, element, elementHP }
 
     // Reward Logic
@@ -211,14 +211,14 @@ class GameEngine {
     bossContainer.style.top = '10px';
     bossContainer.style.left = '50%';
     bossContainer.style.transform = 'translateX(-50%)';
-    bossContainer.style.width = '120px';
+    bossContainer.style.width = '300px'; // Wider for better HP visibility
     bossContainer.style.textAlign = 'center';
     bossContainer.style.zIndex = '10';
 
     // HP Bar
     const hpBar = document.createElement('div');
     hpBar.style.width = '100%';
-    hpBar.style.height = '10px';
+    hpBar.style.height = '20px'; // Thicker
     hpBar.style.backgroundColor = 'red';
     hpBar.style.border = '2px solid white';
     hpBar.style.marginBottom = '5px';
@@ -241,6 +241,44 @@ class GameEngine {
       hpElement: hpBar,
       elementDragon: dragon
     };
+  }
+
+  damageBoss() {
+    if (!this.isBossActive) return;
+
+    this.bossHP--;
+    console.log(`Boss Damaged! HP: ${this.bossHP}/${this.bossMaxHP}`);
+
+    const hpPercent = (this.bossHP / this.bossMaxHP * 100);
+    this.bossEntity.hpElement.style.width = hpPercent + '%';
+
+    // Flash Boss
+    this.bossEntity.elementDragon.style.opacity = 0.5;
+    setTimeout(() => this.bossEntity.elementDragon.style.opacity = 1, 100);
+
+    // Floating Damage Text
+    const dmgText = document.createElement('div');
+    dmgText.textContent = "💥 -1";
+    dmgText.style.position = 'absolute';
+    dmgText.style.top = '0';
+    dmgText.style.left = '50%';
+    dmgText.style.transform = 'translateX(-50%)';
+    dmgText.style.color = 'red';
+    dmgText.style.fontSize = '30px';
+    dmgText.style.fontWeight = 'bold';
+    dmgText.style.textShadow = '0 0 5px white';
+    dmgText.style.transition = 'top 0.5s, opacity 0.5s';
+    this.bossEntity.element.appendChild(dmgText);
+
+    setTimeout(() => {
+      dmgText.style.top = '-50px';
+      dmgText.style.opacity = 0;
+    }, 50);
+    setTimeout(() => dmgText.remove(), 550);
+
+    if (this.bossHP <= 0) {
+      this.victory();
+    }
   }
 
   loop() {
@@ -623,7 +661,7 @@ class GameEngine {
         this.updateTimeUI();
 
         // Cap speed/rate at Level 9
-        if (this.level < 9) {
+        if (this.level <= 9) {
           if (this.spawnRate > 500) this.spawnRate -= 100;
         }
       }

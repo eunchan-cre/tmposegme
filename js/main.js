@@ -303,8 +303,17 @@ async function handleTesterBtn() {
   }
 
   if (password === '0011') {
-    // Level 15 Boss Fight
-    alert("비밀번호 확인: 레벨 15 보스전으로 이동합니다.");
+    // Level Selection
+    let inputLevel = prompt("이동할 레벨을 입력하세요 (1-15):", "15");
+    if (!inputLevel) return;
+
+    const targetLevel = parseInt(inputLevel);
+    if (isNaN(targetLevel) || targetLevel < 1) {
+      alert("유효하지 않은 레벨입니다.");
+      return;
+    }
+
+    alert(`비밀번호 확인: 레벨 ${targetLevel}로 이동합니다.`);
     closeRuleModal();
 
     // Hide Roulette if it was somehow active
@@ -312,26 +321,20 @@ async function handleTesterBtn() {
 
     // Force Start if not active
     if (!gameEngine.isGameActive) {
-      gameEngine.start();
+      // Initialize with cheat settings for tester
+      gameEngine.devGunMode = true; // Tester always gets gun enabled? Or keep it specific?
+      // User request didn't specify changing cheat rules, just level selection.
+      // But previous 0011 implied cheats (high score, gun mode, etc).
+      // Let's keep devGunMode = true as it is "Tester" mode.
     }
-
-    // Set Level 15 State
-    gameEngine.level = 15;
-    gameEngine.score = 14000;
-    gameEngine.bombsSpawnedInLevel = 0; // Reset bomb count
-
-    // Super Cheat: Infinite Gun + 5 Lives
     gameEngine.devGunMode = true;
-    gameEngine.maxMisses = 5;
-    gameEngine.missedCount = 0;
 
-    gameEngine.updateScoreUI();
+    // Start with config
+    gameEngine.start({ startLevel: targetLevel });
+
+    // Additional cheats
+    gameEngine.maxMisses = 5; // Tester bonus
     gameEngine.updateLivesUI();
-
-    // Trigger Boss Fight (Delay slightly to ensure start init finishes if async, though start is sync)
-    setTimeout(() => {
-      gameEngine.startBossFight();
-    }, 100);
   } else if (password === '7777') {
     // Infinite Gun Mode
     alert("비밀번호 확인: 무한 총 모드 활성화! (W키 사용)");

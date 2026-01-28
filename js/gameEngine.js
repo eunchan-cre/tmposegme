@@ -40,19 +40,33 @@ class GameEngine {
     if (this.isGameActive) return;
 
     this.isGameActive = true;
-    this.score = 0;
-    this.level = 1;
+    this.level = config.startLevel || 1;
+    this.score = (this.level - 1) * 1000;
     this.timeLimit = 60;
     this.playerPos = 1;
     this.missedCount = 0; // Track missed fruits
     this.spawningPaused = false; // Level transition logic
     this.bombsSpawnedInLevel = 0; // Track bombs per level
 
+    // Adjust Speed/Rate based on start level
+    const levelCap = Math.min(this.level, 9);
+    // Level 1: Speed 3, Rate 1500
+    // Level 9: Speed 11, Rate 700
+    this.baseSpeed = 3 + (levelCap - 1);
+    this.spawnRate = 1500 - ((levelCap - 1) * 100);
+
     // Boss State
     this.isBossActive = false;
     this.bossHP = 15;
     this.bossMaxHP = 15;
     this.bossEntity = null; // { x, y, direction, element, elementHP }
+
+    // Start Boss if level >= 15
+    if (this.level >= 15) {
+      // Logic handled in startBossFight calling later or immediate?
+      // We can defer slightly or set it here.
+      // startBossFight sets specific rate/speed for boss.
+    }
 
     // Reward Logic
     this.maxMisses = 2; // Default
@@ -67,7 +81,12 @@ class GameEngine {
       this.hasGun = true;
       this.showFeedback("Gun Ready! Press 'W' to use 🔫", true);
     } else {
-      this.showFeedback("Game Start!");
+      this.showFeedback(`Level ${this.level} Start!`);
+    }
+
+    // Boss Check Immediate
+    if (this.level >= 15) {
+      setTimeout(() => this.startBossFight(), 100);
     }
 
     // UI Elements

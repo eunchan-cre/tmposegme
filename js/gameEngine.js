@@ -426,12 +426,9 @@ class GameEngine {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
 
-      // Gun Logic (Only for Bomb/Fruits, maybe not Rocket? Or Gun kills rocket too?)
-      // Let's say Gun helps avoid bombs but rockets must be CAUGHT.
-      // So Gun ignores Rockets? Or destroys them? 
-      // If Gun destroys Rocket, you can't damage boss. Bad.
-      // Gun should ignore Rockets.
-      if (this.gunActive && item.y > 0 && item.type !== 'rocket') {
+      // Gun Logic: Auto collect/destroy if visible (y > 0)
+      // Gun can now target Rockets too (User request)
+      if (this.gunActive && item.y > 0) {
         if (this.gunElement) {
           const laneCenter = (item.lane * 33.33 + 16.66);
           this.gunElement.style.left = `calc(${laneCenter}% - 15px)`;

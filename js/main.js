@@ -35,7 +35,13 @@ async function init() {
     const maxPredictionDiv = document.getElementById("max-prediction");
 
     // 3. GameEngine 초기화 (공통)
+    // Preserve Dev Mode flag if re-initializing
+    let savedDevMode = false;
+    if (gameEngine) {
+      savedDevMode = gameEngine.devGunMode;
+    }
     gameEngine = new GameEngine();
+    gameEngine.devGunMode = savedDevMode;
 
     if (useKeyboard) {
       // Keyboard Mode Initialization
@@ -312,7 +318,14 @@ async function handleTesterBtn() {
     // Set Level 15 State
     gameEngine.level = 15;
     gameEngine.score = 14000;
+
+    // Super Cheat: Infinite Gun + 5 Lives
+    gameEngine.devGunMode = true;
+    gameEngine.maxMisses = 5;
+    gameEngine.missedCount = 0;
+
     gameEngine.updateScoreUI();
+    gameEngine.updateLivesUI();
 
     // Trigger Boss Fight (Delay slightly to ensure start init finishes if async, though start is sync)
     setTimeout(() => {

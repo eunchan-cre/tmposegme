@@ -196,8 +196,11 @@ class GameEngine {
     if (this.isBossActive) return;
     this.isBossActive = true;
     this.spawningPaused = false; // Ensure items spawn
-    this.spawnRate = 1200; // Boss attack rate
-    this.baseSpeed = 4; // Item speed
+    // Level 12 Equivalent:
+    // Speed starts at 3. Level 12 = 3 + 11 = 14.
+    // SpawnRate starts at 1500. Decreases 100 per level. Level 12 = 1500 - 1100 = 400.
+    this.spawnRate = 400;
+    this.baseSpeed = 14;
 
     this.showFeedback("BOSS FIGHT! 🐉\nCatch Rockets 🚀!", true);
 

@@ -301,14 +301,23 @@ async function handleTesterBtn() {
     alert("비밀번호 확인: 레벨 15 보스전으로 이동합니다.");
     closeRuleModal();
 
-    // Ensure game is actually running
+    // Hide Roulette if it was somehow active
+    document.getElementById('roulette-overlay').style.display = 'none';
+
+    // Force Start if not active
     if (!gameEngine.isGameActive) {
-      document.getElementById("gameStartBtn").click(); // Trigger start logic
-      // Small delay to let start logic run
-      setTimeout(() => gameEngine.startBossFight(), 500);
-    } else {
-      gameEngine.startBossFight();
+      gameEngine.start();
     }
+
+    // Set Level 15 State
+    gameEngine.level = 15;
+    gameEngine.score = 14000;
+    gameEngine.updateScoreUI();
+
+    // Trigger Boss Fight (Delay slightly to ensure start init finishes if async, though start is sync)
+    setTimeout(() => {
+      gameEngine.startBossFight();
+    }, 100);
   } else if (password === '7777') {
     // Infinite Gun Mode
     alert("비밀번호 확인: 무한 총 모드 활성화! (W키 사용)");

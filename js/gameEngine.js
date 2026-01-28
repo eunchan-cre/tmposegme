@@ -46,6 +46,7 @@ class GameEngine {
     this.playerPos = 1;
     this.missedCount = 0; // Track missed fruits
     this.spawningPaused = false; // Level transition logic
+    this.bombsSpawnedInLevel = 0; // Track bombs per level
 
     // Boss State
     this.isBossActive = false;
@@ -376,9 +377,19 @@ class GameEngine {
       }
     }
 
+    // Check Bomb Limit (Max 5 per level)
+    if (type === 'bomb') {
+      if (this.bombsSpawnedInLevel >= 5) {
+        // Revert to Apple if limit reached
+        type = 'apple'; symbol = '🍎'; score = 100;
+      } else {
+        this.bombsSpawnedInLevel++;
+      }
+    }
+
     const itemEl = document.createElement('div');
     itemEl.classList.add('item');
-    // If Boss, start from Boss X, then animate to Lane X? 
+    // If Boss, start from Boss X, then animate to Lane X?
     // Or just fall straight?
     // User said "From Dragon Mouth".
     // If it falls straight from Boss X (e.g. 45%), and Player is in Center Lane (50%), is it caught?
@@ -643,6 +654,7 @@ class GameEngine {
 
     if (newLevel > this.level) {
       this.level = newLevel;
+      this.bombsSpawnedInLevel = 0; // Reset bomb count for new level
 
       // Cap Speed at Level 9
       // Level 1 = 3. Level 9 = 11.

@@ -318,6 +318,7 @@ async function handleTesterBtn() {
     // Set Level 15 State
     gameEngine.level = 15;
     gameEngine.score = 14000;
+    gameEngine.bombsSpawnedInLevel = 0; // Reset bomb count
 
     // Super Cheat: Infinite Gun + 5 Lives
     gameEngine.devGunMode = true;

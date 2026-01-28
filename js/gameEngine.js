@@ -39,10 +39,16 @@ class GameEngine {
     this.isGameActive = true;
     this.score = 0;
     this.level = 1;
-    this.timeLimit = config.timeLimit || 60;
+    this.timeLimit = 60;
     this.playerPos = 1;
     this.missedCount = 0; // Track missed fruits
     this.spawningPaused = false; // Level transition logic
+
+    // Boss State
+    this.isBossActive = false;
+    this.bossHP = 10;
+    this.bossMaxHP = 10;
+    this.bossEntity = null; // { x, y, direction, element, elementHP }
 
     // Reward Logic
     this.maxMisses = 2; // Default
@@ -95,6 +101,10 @@ class GameEngine {
     const existingItems = document.querySelectorAll('.item');
     existingItems.forEach(el => el.remove());
 
+    // Clear Boss Elements if any
+    const existingBoss = document.getElementById('boss-container');
+    if (existingBoss) existingBoss.remove();
+
     // Update Initial UI
     this.updatePlayerPosition();
     this.updateScoreUI();
@@ -111,7 +121,7 @@ class GameEngine {
     console.log("Game Started!");
   }
 
-  stop(reason = "Time's Up!") {
+  stop(reason = "Time's Up!", isVictory = false) {
     if (!this.isGameActive) return;
 
     this.isGameActive = false;
@@ -126,28 +136,38 @@ class GameEngine {
 
     this.showFeedback(reason, true);
 
+    // Victory Visuals
+    if (isVictory) {
+      this.feedbackElement.style.color = "#4CAF50"; // Green for victory
+      this.feedbackElement.style.fontSize = "40px";
+    }
+
     if (this.onGameEnd) {
       this.onGameEnd(this.score, this.level);
     }
-
-    // Disable stop button, enable start button logic handles in main.js usually
-    // But here we might want to just let the user see the result
   }
 
   startTimer() {
     this.gameTimer = setInterval(() => {
-      this.timeLimit--;
-      this.updateTimeUI();
-
-      // Level up / Difficulty increase
-      if (this.timeLimit === 30) {
-        this.triggerLevelTransition(1000, 4, "Warning: Speed Up!");
-      } else if (this.timeLimit === 10) {
-        this.triggerLevelTransition(500, 6, "Warning: Fever Time!");
+      // If Boss is active, timer doesn't decrease (or acts differently? Maybe Time Limit for Boss?)
+      // Let's stop timer countdown during Boss Fight to focus on survival/combat
+      if (!this.isBossActive) {
+        this.timeLimit--;
+        this.timeLimit = Math.max(0, this.timeLimit); // Safety
+        this.updateTimeUI();
       }
 
-      if (this.timeLimit <= 0) {
-        this.stop("Game Over!");
+      // Level up / Difficulty increase (Pre-Boss)
+      if (!this.isBossActive) {
+        if (this.timeLimit === 30) {
+          this.triggerLevelTransition(1000, 4, "Warning: Speed Up!");
+        } else if (this.timeLimit === 10) {
+          this.triggerLevelTransition(500, 6, "Warning: Fever Time!");
+        }
+
+        if (this.timeLimit <= 0) {
+          this.stop("Game Over!");
+        }
       }
     }, 1000);
   }
@@ -164,10 +184,63 @@ class GameEngine {
     }, 2000); // 2 seconds pause
   }
 
+  startBossFight() {
+    if (this.isBossActive) return;
+    this.isBossActive = true;
+    this.spawningPaused = false; // Ensure items spawn
+    this.spawnRate = 1200; // Boss attack rate
+    this.baseSpeed = 4; // Item speed
+
+    this.showFeedback("BOSS FIGHT! 🐉\nCatch Rockets 🚀!", true);
+
+    // Create Boss Visuals
+    const bossContainer = document.createElement('div');
+    bossContainer.id = 'boss-container';
+    bossContainer.style.position = 'absolute';
+    bossContainer.style.top = '10px';
+    bossContainer.style.left = '50%';
+    bossContainer.style.transform = 'translateX(-50%)';
+    bossContainer.style.width = '120px';
+    bossContainer.style.textAlign = 'center';
+    bossContainer.style.zIndex = '10';
+
+    // HP Bar
+    const hpBar = document.createElement('div');
+    hpBar.style.width = '100%';
+    hpBar.style.height = '10px';
+    hpBar.style.backgroundColor = 'red';
+    hpBar.style.border = '2px solid white';
+    hpBar.style.marginBottom = '5px';
+    hpBar.style.transition = 'width 0.2s';
+    bossContainer.appendChild(hpBar);
+
+    // Dragon Icon
+    const dragon = document.createElement('div');
+    dragon.textContent = '🐉';
+    dragon.style.fontSize = '80px';
+    bossContainer.appendChild(dragon);
+
+    this.container.appendChild(bossContainer);
+
+    this.bossEntity = {
+      x: 50, // Percentage 50%
+      y: 0,
+      direction: 1, // 1: right, -1: left
+      element: bossContainer,
+      hpElement: hpBar,
+      elementDragon: dragon
+    };
+  }
+
   loop() {
     if (!this.isGameActive) return;
 
     const now = Date.now();
+
+    // 0. Boss Movement
+    if (this.isBossActive && this.bossEntity) {
+      this.updateBossMovement();
+    }
 
     // 1. Spawn Item
     if (!this.spawningPaused && now - this.lastSpawnTime > this.spawnRate) {
@@ -184,33 +257,112 @@ class GameEngine {
     this.gameLoopId = requestAnimationFrame(() => this.loop());
   }
 
+  updateBossMovement() {
+    // Simple sine wave or bounce
+    const speed = 0.5; // Movement speed percent per frame
+    this.bossEntity.x += this.bossEntity.direction * speed;
+
+    // Bounce
+    if (this.bossEntity.x > 90 || this.bossEntity.x < 10) {
+      this.bossEntity.direction *= -1;
+    }
+
+    this.bossEntity.element.style.left = this.bossEntity.x + '%';
+  }
+
   spawnItem() {
-    const lane = Math.floor(Math.random() * 3);
+    let lane, startXPercent;
+
+    if (this.isBossActive && this.bossEntity) {
+      // Spawn from Boss Mouth
+      // Convert Boss X % to Lane Index approximation for logic, or just use free coordinates?
+      // Game engine uses Lanes (0, 1, 2) for player logic. Items need to align with lanes to be catchable easily?
+      // Or free fall?
+      // Let's align to nearest lane for gameplay simplicity, or just set raw left and check collision by generic rect?
+      // Current collision logic `checkCollisions` uses `item.lane`. This binds us to lanes.
+      // We should calculate which lane the Boss is closest to.
+
+      // Boss X: 0 ~ 100.
+      // Lanes: 0 (16%), 1 (50%), 2 (83%).
+      // ranges: 0-33, 33-66, 66-100.
+      if (this.bossEntity.x < 33) lane = 0;
+      else if (this.bossEntity.x < 66) lane = 1;
+      else lane = 2;
+
+      startXPercent = this.bossEntity.x; // Visual origin
+    } else {
+      lane = Math.floor(Math.random() * 3);
+      startXPercent = (lane * 33.33 + 16.66);
+    }
+
     const typeRoll = Math.random();
     let type = 'apple';
     let symbol = '🍎';
     let score = 100;
 
-    // Probability: 50% Apple, 30% Banana, 10% Dragon, 10% Bomb
-    if (typeRoll < 0.5) {
-      type = 'apple'; symbol = '🍎'; score = 100;
-    } else if (typeRoll < 0.8) {
-      type = 'banana'; symbol = '🍌'; score = 200;
-    } else if (typeRoll < 0.9) {
-      type = 'dragon'; symbol = '🌵'; score = 300; // Cactus as fallback for Dragon Fruit
+    // Boss Phase Spawning
+    if (this.isBossActive) {
+      // 30% Rocket, 30% Bomb, 40% Fruit
+      if (typeRoll < 0.3) {
+        type = 'rocket'; symbol = '🚀'; score = 0;
+      } else if (typeRoll < 0.6) {
+        type = 'bomb'; symbol = '💣'; score = 0;
+      } else {
+        // Random Fruit
+        const f = Math.random();
+        if (f < 0.5) { type = 'apple'; symbol = '🍎'; score = 100; }
+        else if (f < 0.8) { type = 'banana'; symbol = '🍌'; score = 200; }
+        else { type = 'dragon'; symbol = '🌵'; score = 300; }
+      }
     } else {
-      type = 'bomb'; symbol = '💣'; score = 0;
+      // Normal Phase
+      if (typeRoll < 0.5) {
+        type = 'apple'; symbol = '🍎'; score = 100;
+      } else if (typeRoll < 0.8) {
+        type = 'banana'; symbol = '🍌'; score = 200;
+      } else if (typeRoll < 0.9) {
+        type = 'dragon'; symbol = '🌵'; score = 300;
+      } else {
+        type = 'bomb'; symbol = '💣'; score = 0;
+      }
     }
 
     const itemEl = document.createElement('div');
     itemEl.classList.add('item');
-    itemEl.style.left = (lane * 33.33 + 16.66) + '%'; // Center of lane
-    itemEl.style.transform = 'translateX(-50%)'; // Center alignment
-    itemEl.style.top = '-60px';
+    // If Boss, start from Boss X, then animate to Lane X? 
+    // Or just fall straight?
+    // User said "From Dragon Mouth".
+    // If it falls straight from Boss X (e.g. 45%), and Player is in Center Lane (50%), is it caught?
+    // Lane width logic in collision: `checkCollisions` uses strict `item.lane === this.playerPos`.
+    // So we MUST assign a lane.
+    // Visual tweak: Start at Boss X, transition to Lane X quickly?
+    // Or Boss just snaps spawn to lane center.
+    // Let's do: Start at Boss X, drift to Lane Center.
+
+    // For now, simple: Boss aligns to lane for spawn logic basically. 
+    // Visual start:
+    // itemEl.style.left = startXPercent + '%'; // Start at dragon
+    // But logic needs `lane`.
+
+    // Animation idea:
+    // Start at Boss X. 
+    // In updateItems, lerp X to Lane Index X?
+    // Or just let it fall at Lane X immediately (simplest).
+    // Let's use strict Lane Center to avoid collision ambiguity.
+    // The Boss moves, so "Coming from mouth" might just mean "Spawns when Boss is vaguely over that lane".
+
+    itemEl.style.left = (lane * 33.33 + 16.66) + '%';
+    // Override if we want to experiment with `startXPercent` but it might break collision standard.
+    // Let's stick to standard lane centers for reliability.
+
+    itemEl.style.transform = 'translateX(-50%)';
+    itemEl.style.top = this.isBossActive ? '60px' : '-60px'; // Dragon is at top ~10px + height. Spawn lower.
 
     if (type === 'dragon') {
-      // Use generated SVG
       itemEl.innerHTML = `<img src="assets/dragon_fruit.svg" alt="🐉" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.textContent='🐉'">`;
+    } else if (type === 'rocket') {
+      itemEl.style.fontSize = '40px'; // Bigger rocket
+      itemEl.textContent = symbol;
     } else {
       itemEl.textContent = symbol;
     }
@@ -221,8 +373,8 @@ class GameEngine {
       id: this.itemIdCounter++,
       type: type,
       lane: lane,
-      y: -60,
-      speed: this.baseSpeed + Math.random(), // Slight variation
+      y: this.isBossActive ? 60 : -60,
+      speed: this.baseSpeed + Math.random(),
       element: itemEl,
       score: score
     });
@@ -237,51 +389,44 @@ class GameEngine {
       this.gunElement = document.createElement('div');
       this.gunElement.textContent = "🔫";
       this.gunElement.style.position = "absolute";
-      this.gunElement.style.fontSize = "30px"; // Smaller
-      this.gunElement.style.bottom = "20px"; // Same line as basket
+      this.gunElement.style.fontSize = "30px";
+      this.gunElement.style.bottom = "20px";
       this.gunElement.style.zIndex = "20";
       this.gunElement.style.transition = "left 0.1s linear";
-      this.gunElement.style.left = "50%"; // Start center
-      this.gunElement.style.transform = "translateX(-50%)"; // Center alignment specific to the element itself
+      this.gunElement.style.left = "50%";
+      this.gunElement.style.transform = "translateX(-50%)";
       this.container.appendChild(this.gunElement);
     }
 
-    // Clear any existing gun timer to prevent multiple timers
-    if (this.gunTimer) {
-      clearTimeout(this.gunTimer);
-    }
+    if (this.gunTimer) clearTimeout(this.gunTimer);
 
     this.gunTimer = setTimeout(() => {
       this.gunActive = false;
       this.showFeedback("Gun Deactivated", false);
       this.gunTimer = null;
-
-      // Remove visual gun
       if (this.gunElement) {
         this.gunElement.remove();
         this.gunElement = null;
       }
-    }, 10000); // 10 seconds
+    }, 10000);
   }
 
   updateItems() {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
 
-      // Gun Logic: Auto collect/destroy if visible (y > 0)
-      if (this.gunActive && item.y > 0) {
-        // Move Gun to this lane visually
+      // Gun Logic (Only for Bomb/Fruits, maybe not Rocket? Or Gun kills rocket too?)
+      // Let's say Gun helps avoid bombs but rockets must be CAUGHT.
+      // So Gun ignores Rockets? Or destroys them? 
+      // If Gun destroys Rocket, you can't damage boss. Bad.
+      // Gun should ignore Rockets.
+      if (this.gunActive && item.y > 0 && item.type !== 'rocket') {
         if (this.gunElement) {
           const laneCenter = (item.lane * 33.33 + 16.66);
-          this.gunElement.style.left = `calc(${laneCenter}% - 15px)`; // Center of gun (width approx 30)
+          this.gunElement.style.left = `calc(${laneCenter}% - 15px)`;
         }
-
-        // Fire effect
         this.fireBullet(item, i);
-        return; // Wait for bullet to hit before destroying? 
-        // Actually, for better feel, bullet travels fast, then destroy.
-        // But since we are in a loop, we need to ensure we don't fire multiple times for same item.
-        // Let's add 'isTargeted' flag to item.
+        continue; // Bullet handles destruction
       }
 
       item.y += item.speed;
@@ -289,17 +434,18 @@ class GameEngine {
 
       // Remove if out of bounds
       if (item.y > 500) {
-        // Check if it was a fruit (not a bomb)
-        if (item.type !== 'bomb') {
+        if (item.type !== 'bomb' && item.type !== 'rocket') {
+          // Missed Fruit
           this.missedCount++;
-          this.updateLivesUI(); // Update hearts
+          this.updateLivesUI();
           this.showFeedback(`Missed!`);
 
           if (this.missedCount >= this.maxMisses) {
             this.stop(`Game Over! (${this.maxMisses} Misses)`);
-            return; // Stop update loop
+            return;
           }
         }
+        // Rockets just pass by if missed.
 
         item.element.remove();
         this.items.splice(i, 1);
@@ -309,79 +455,45 @@ class GameEngine {
 
   fireBullet(item, index) {
     if (item.isTargeted) return;
-    item.isTargeted = true; // Prevent multiple shots
+    item.isTargeted = true;
 
     const bullet = document.createElement('div');
-    bullet.textContent = '📍'; // Or '⚡', '🔴'
+    bullet.textContent = '📍';
     bullet.style.position = 'absolute';
     bullet.style.fontSize = '20px';
-    bullet.style.left = this.gunElement.style.left; // Start from gun
-    bullet.style.bottom = '50px'; // Gun is at 20px bottom + size
+    bullet.style.left = this.gunElement.style.left;
+    bullet.style.bottom = '50px';
     bullet.style.zIndex = '15';
-    bullet.style.transition = 'bottom 0.2s linear, left 0.2s linear'; // Fast speed (< 1s)
+    bullet.style.transition = 'bottom 0.2s linear, left 0.2s linear';
     this.container.appendChild(bullet);
 
-    // Calculate target position
-    // Item y is top. We want to hit it.
-    // CSS bottom is 500 - y - height? 
-    // Item Y is from top. Container height 500.
-    // Target Bottom = 500 - (item.y + 30); // Hit center
-    // Let's uset requestAnimationFrame or setTimeout for transition trigger
-
-    // Actually simplicity:
-    // We want visual hit.
-    // 0.2s is fast enough.
-
-    // Trigger animation
     requestAnimationFrame(() => {
       const laneCenter = (item.lane * 33.33 + 16.66);
-      bullet.style.left = `calc(${laneCenter}% - 10px)`; // Center of bullet
-      bullet.style.bottom = (500 - item.y) + 'px'; // Fly to item
+      bullet.style.left = `calc(${laneCenter}% - 10px)`;
+      bullet.style.bottom = (500 - item.y) + 'px';
     });
 
-    // On Hit
     setTimeout(() => {
       bullet.remove();
-      // Check if item still exists (it should)
-      // Handle collision logically now
-
-      // Re-find index just in case array shifted? 
-      // Array index relies on loop order. splice shifts subsequent. 
-      // But since this is async, the main loop continues.
-      // If we remove item HERE, we must be careful about main loop's index.
-      // Safer approach: Mark item as 'destroyed' in main loop and remove it.
-      // But wait, user wants bullet -> THEN destroy.
-
-      // Let's cheat slightly: 
-      // Visual destroy happens here. Logical remove from array happens here?
-      // If we remove from array, main loop 'i' loop might skip next item if we don't adjust 'i' if called from loop?
-      // But updateItems iterates backwards! So splicing current index 'i' acts safe for backwards loop.
-      // BUT this setTimeout runs OUTSIDE the loop.
-
-      // Find item by ID to be safe
       const currentIdx = this.items.findIndex(it => it.id === item.id);
       if (currentIdx !== -1) {
         this.handleCollision(item, currentIdx);
       }
-    }, 200); // Sync with transition duration
+    }, 200);
   }
 
   checkCollisions() {
-    // Player hitbox (approx)
-    // Player y is bottom 20px, height 60px. So range: 420px to 480px (container is 500px height)
     const playerTop = 420;
     const playerBottom = 480;
 
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
-      // Item y is the top position. height 60.
       const itemBottom = item.y + 60;
       const itemTop = item.y;
 
       // Check Lane
       if (item.lane === this.playerPos) {
         // Check Y overlap
-        // If item bottom touches player top (with some buffer)
         if (itemBottom > playerTop + 10 && itemTop < playerBottom - 10) {
           this.handleCollision(item, i);
         }
@@ -394,19 +506,24 @@ class GameEngine {
     item.element.remove();
     this.items.splice(index, 1);
 
-    if (item.type === 'bomb' && !this.gunActive) {
+    if (item.type === 'rocket') {
+      // Damage Boss
+      this.damageBoss();
+      // Feedback
+      this.showFeedback("ATTACK! 💥");
+    } else if (item.type === 'bomb' && !this.gunActive) {
       this.stop("BOMB! Game Over");
     } else {
-      // Score
+      // Score (Fruit) or Gunned Bomb
       let points = item.score;
-      let color = '#ffeb3b'; // Default yellow
+      let color = '#ffeb3b';
 
-      // Special case: Bomb destroyed by Gun
       if (item.type === 'bomb' && this.gunActive) {
         points = 200;
-        color = '#448AFF'; // Blue for gun effect
+        color = '#448AFF';
       }
 
+      // Add Score logic
       this.addScore(points);
 
       // Feedback
@@ -419,7 +536,7 @@ class GameEngine {
       popup.style.fontWeight = 'bold';
       popup.style.fontSize = '24px';
       popup.style.transition = 'top 0.5s, opacity 0.5s';
-      this.container.appendChild(popup);
+      if (item.type !== 'bomb') this.container.appendChild(popup); // Don't show +200 on boss bomb kill maybe? Or yes?
 
       setTimeout(() => {
         popup.style.top = '350px';
@@ -430,11 +547,33 @@ class GameEngine {
     }
   }
 
+  damageBoss() {
+    if (!this.isBossActive) return;
+
+    this.bossHP--;
+    this.bossEntity.hpElement.style.width = (this.bossHP / this.bossMaxHP * 100) + '%';
+
+    // Flash Boss
+    this.bossEntity.elementDragon.style.opacity = 0.5;
+    setTimeout(() => this.bossEntity.elementDragon.style.opacity = 1, 100);
+
+    if (this.bossHP <= 0) {
+      this.victory();
+    }
+  }
+
+  victory() {
+    this.stop("YOU WIN! 🏆\nDRAGON DEFEATED!", true);
+    if (this.bossEntity) {
+      this.bossEntity.element.innerHTML = "💥";
+      setTimeout(() => this.bossEntity.element.remove(), 1000);
+    }
+  }
+
   updatePlayerPosition() {
     if (!this.playerElement) return;
-    // 0 -> 16.66%, 1 -> 50%, 2 -> 83.33%
     const leftPercent = (this.playerPos * 33.33 + 16.66);
-    this.playerElement.style.left = `calc(${leftPercent}% - 40px)`; // Center of player (width 80)
+    this.playerElement.style.left = `calc(${leftPercent}% - 40px)`;
   }
 
   onPoseDetected(poseLabel) {
@@ -454,23 +593,22 @@ class GameEngine {
 
   addScore(points) {
     this.score += points;
-
-    // Check Level Up (Every 1000 points)
-    // Current Level logic was: 1, then maybe increased by time? No, it was static mostly.
-    // New logic: Level = floor(score / 1000) + 1
     const newLevel = Math.floor(this.score / 1000) + 1;
 
     if (newLevel > this.level) {
       this.level = newLevel;
-      this.baseSpeed += 1; // Increase speed by 1
-      this.timeLimit = 60; // Reset time to 60s
 
-      // Visual Feedback
-      this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL ${this.level}!\nSPEED UP!\nTIME RESET!`);
-      this.updateTimeUI();
-
-      // Maybe decrease spawn rate slightly?
-      if (this.spawnRate > 500) this.spawnRate -= 100;
+      // Check Level 15 Boss
+      if (this.level >= 15 && !this.isBossActive) {
+        this.startBossFight();
+      } else if (!this.isBossActive) {
+        // Standard Level Up
+        this.baseSpeed += 1;
+        this.timeLimit = 60;
+        this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL ${this.level}!\nSPEED UP!\nTIME RESET!`);
+        this.updateTimeUI();
+        if (this.spawnRate > 500) this.spawnRate -= 100;
+      }
     }
 
     this.updateScoreUI();
@@ -487,18 +625,11 @@ class GameEngine {
   updateLivesUI() {
     const container = document.getElementById('lives-container');
     if (!container) return;
-
-    // Remaining lives = Max - Missed
     const remaining = Math.max(0, this.maxMisses - this.missedCount);
-
-    // Generate heart string
     let hearts = "";
     for (let i = 0; i < remaining; i++) {
       hearts += "❤️";
     }
-    // Optional: Add empty hearts for lost lives? "💔"?
-    // User requested "disappear", so just fewer hearts is correct.
-
     container.textContent = hearts;
   }
 
@@ -506,7 +637,6 @@ class GameEngine {
     if (!this.feedbackElement) return;
     this.feedbackElement.textContent = text;
     this.feedbackElement.style.opacity = 1;
-
     if (!persist) {
       setTimeout(() => {
         this.feedbackElement.style.opacity = 0;
@@ -514,7 +644,6 @@ class GameEngine {
     }
   }
 
-  // Callbacks
   setScoreChangeCallback(cb) { this.onScoreChange = cb; }
   setGameEndCallback(cb) { this.onGameEnd = cb; }
 }

@@ -196,11 +196,11 @@ class GameEngine {
     if (this.isBossActive) return;
     this.isBossActive = true;
     this.spawningPaused = false; // Ensure items spawn
-    // Level 12 Equivalent:
-    // Speed starts at 3. Level 12 = 3 + 11 = 14.
-    // SpawnRate starts at 1500. Decreases 100 per level. Level 12 = 1500 - 1100 = 400.
-    this.spawnRate = 400;
-    this.baseSpeed = 14;
+    // Level 9 Equivalent:
+    // Speed starts at 3. Level 9 (+8) = 11.
+    // SpawnRate starts at 1500. Level 9 (-800) = 700.
+    this.spawnRate = 700;
+    this.baseSpeed = 11;
 
     this.showFeedback("BOSS FIGHT! 🐉\nCatch Rockets 🚀!", true);
 
@@ -609,16 +609,26 @@ class GameEngine {
     if (newLevel > this.level) {
       this.level = newLevel;
 
+      // Cap Speed at Level 9
+      // Level 1 = 3. Level 9 = 11.
+      if (this.level <= 9) {
+        this.baseSpeed += 1;
+      }
+      this.timeLimit = 60; // Reset time to 60s.
+
       // Check Level 15 Boss
       if (this.level >= 15 && !this.isBossActive) {
         this.startBossFight();
       } else if (!this.isBossActive) {
         // Standard Level Up
-        this.baseSpeed += 1;
-        this.timeLimit = 60;
+        // Visual Feedback
         this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL ${this.level}!\nSPEED UP!\nTIME RESET!`);
         this.updateTimeUI();
-        if (this.spawnRate > 500) this.spawnRate -= 100;
+
+        // Cap speed/rate at Level 9
+        if (this.level < 9) {
+          if (this.spawnRate > 500) this.spawnRate -= 100;
+        }
       }
     }
 

@@ -127,9 +127,6 @@ button:hover:not(:disabled) {
   z-index: 1;
 }
 
-z-index: 1;
-}
-
 /* Player (Basket) */
 .player,
 #player {

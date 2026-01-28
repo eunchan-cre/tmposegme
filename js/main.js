@@ -103,13 +103,9 @@ async function startPVP() {
 
   // 2. Hide Modal & Setup UI
   closeRuleModal();
-  document.getElementById('roulette-overlay').style.display = 'none'; // Ensure
+  document.getElementById('roulette-overlay').style.display = 'none';
 
-  // Clear Main Area to inject 2 boards
-  // We need to preserve 'controls' and 'debug-area' but replace 'game-info' and 'game-container'
-  // Or simpler: Hide existing, append new 'main-wrapper' if not exists, or populate it.
-
-  // existing single player elements:
+  // Clean up single player UI
   const singleInfo = document.querySelector('.game-info');
   const singleContainer = document.getElementById('game-container');
   if (singleInfo) singleInfo.style.display = 'none';
@@ -121,13 +117,12 @@ async function startPVP() {
   if (!wrapper) {
     wrapper = document.createElement('div');
     wrapper.id = 'main-wrapper';
-    // Insert after h1 (or at top of body, move down)
     const ref = document.querySelector('.controls');
     ref.parentNode.insertBefore(wrapper, ref);
   }
-  wrapper.innerHTML = ""; // Clear
+  wrapper.innerHTML = "";
 
-  // 3. Generate DOM for P1 and P2
+  // 3. Generate DOM
   const p1DOM = createGameDOM("Player 1 (YOU)");
   const p2DOM = createGameDOM(`AI (${diff.toUpperCase()})`);
 
@@ -137,61 +132,46 @@ async function startPVP() {
   // 4. Initialize Engines
   gameEngine = new GameEngine(p1DOM.root);
   gameEngineP2 = new GameEngine(p2DOM.root);
+  aiController = new AIEngine(gameEngineP2, diff);
 
   // Setup callbacks
   gameEngine.setGameEndCallback((score, level, victory, engine) => handlePVPEnd(score, true));
   gameEngineP2.setGameEndCallback((score, level, victory, engine) => handlePVPEnd(score, false));
 
-  // P1 Input: Keyboard or Camera?
-  // User didn't specify. Assuming Keyboard is favored for PVP or Camera is fine?
-  // Taking context: "PVP 버튼을 ... 띄워줘".
-  // If we are in "Camera Start" mode, use Camera. If "Keyboard Mode", use Keyboard.
-  // We reuse global 'poseEngine' and 'handlePrediction' logic, but direct it to 'gameEngine'.
-  // gameEngine handles its own input for Keyboard if enabled.
+  // 5. Setup Controls for Launch
+  const gameStartBtn = document.getElementById("gameStartBtn");
+  gameStartBtn.disabled = false;
+  gameStartBtn.textContent = "⚔️ BATTLE START";
+  gameStartBtn.onclick = launchPVP;
 
-  // For P2 (AI), input must be disabled (Keyboard listener off)
-  // We refactored GameEngine to have `isInputEnabled` flag.
-  // P1 needs input. P2 does not (AI controls position manually).
+  // Disable main start button (Camera/Keyboard setup) as we are locked in PVP
+  document.getElementById("startBtn").disabled = true;
+  document.getElementById("stopBtn").disabled = false;
+  document.getElementById("stopBtn").onclick = stopPVP;
 
-  // 5. Initialize AI
-  aiController = new AIEngine(gameEngineP2, diff);
+  // Hint
+  document.getElementById("max-prediction").textContent = "준비 완료! [BATTLE START]를 누르세요.";
+}
 
-  // 6. Start Games
-  // Wait for countdown? 
-  // Let's just start.
+function launchPVP() {
+  document.getElementById("gameStartBtn").disabled = true;
 
-  // Need to ensure camera/keyboard is initialized?
-  // If user didn't click "Camera Start", we have no input mechanism.
-  // Maybe prompt to select mode if not ready?
-  // Or auto-enable keyboard for PVP convenience?
+  // Ensure Keyboard Mode if no camera
   if (!poseEngine && !useKeyboard) {
-    const conf = confirm("카메라가 켜지지 않았습니다. 키보드 모드로 시작할까요?");
-    if (conf) {
-      enableKeyboardMode();
-      // init() is for single player usually but sets up flags.
-      // We just set useKeyboard=true.
-    } else {
-      alert("카메라를 먼저 켜주세요 (Camera Start)");
-      location.reload();
-      return;
-    }
+    // Auto enable keyboard if camera wasn't started
+    enableKeyboardMode();
   }
 
-  if (!useKeyboard && poseEngine) {
-    // Connect Pose to P1
-    // handlePrediction calls gameEngine.onPoseDetected. 
-    // Global variable 'gameEngine' is now P1. So it works!
-  }
+  // Check if we need to hook up Camera Prediction to P1 ??
+  // handlePrediction relies on global `gameEngine`.
+  // We overwrote `gameEngine` with P1 instance in startPVP.
+  // So if poseEngine is running, it will call gameEngine.onPoseDetected. CORRECT.
 
   gameEngine.start({ isInputEnabled: true, startLevel: 1 });
-  // P2: Input disabled (AI controlled)
   gameEngineP2.start({ isInputEnabled: false, startLevel: 1 });
   aiController.start();
-
-  document.getElementById('gameStartBtn').disabled = true;
-  document.getElementById('stopBtn').disabled = false;
-  document.getElementById('stopBtn').onclick = stopPVP;
 }
+
 
 function createGameDOM(titleText) {
   const root = document.createElement('div');

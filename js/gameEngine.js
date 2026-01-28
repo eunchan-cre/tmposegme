@@ -620,11 +620,32 @@ class GameEngine {
   }
 
   victory() {
-    this.stop("YOU WIN! 🏆\nDRAGON DEFEATED!", true);
+    // 1. Stop Game Loop fully
+    this.isGameActive = false;
+    clearInterval(this.gameTimer);
+    cancelAnimationFrame(this.gameLoopId);
+
+    // Cleanup Input
+    if (this.handleInput) {
+      window.removeEventListener('keydown', this.handleInput);
+      this.handleInput = null;
+    }
+
+    // 2. Visual Effects
     if (this.bossEntity) {
       this.bossEntity.element.innerHTML = "💥";
       setTimeout(() => this.bossEntity.element.remove(), 1000);
     }
+
+    // 3. Show Ending Screen after short delay
+    setTimeout(() => {
+      const endingOverlay = document.getElementById('ending-overlay');
+      if (endingOverlay) {
+        endingOverlay.style.display = 'flex';
+      } else {
+        alert("YOU WIN! 🏆\n(Ending Screen Missing)");
+      }
+    }, 1000);
   }
 
   updatePlayerPosition() {

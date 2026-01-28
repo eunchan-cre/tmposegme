@@ -68,7 +68,8 @@
         <button id="keyboard-mode-btn" onclick="enableKeyboardMode()" style="background:#ff9800;">⌨️ 키보드 모드
           (A/S/D)</button>
         <button id="skip-btn" onclick="closeRuleModal()">SKIP (<span id="rule-timer">20</span>s)</button>
-        <button id="tester-btn" onclick="handleTesterBtn()" style="background:#607d8b; font-size: 14px;">🛠️ 테스터</button>
+        <button id="tester-btn" onclick="handleTesterBtn()" style="background:#607d8b; font-size: 14px;">🛠️
+          테스터</button>
       </div>
     </div>
   </div>
@@ -112,6 +113,22 @@
       </div>
       <div class="pointer"></div>
       <button id="spin-btn" onclick="spinRoulette()">SPIN!</button>
+    </div>
+  </div>
+
+  <!-- Ending Overlay -->
+  <div id="ending-overlay" style="display:none;">
+    <div class="ending-content">
+      <h1>🏆 GAME CLEAR 🏆</h1>
+      <p>Dragon Defeated!</p>
+      <hr>
+      <div class="credits">
+        <h2>크레딧</h2>
+        <p>작가: 문은찬</p>
+        <p>-tester 엄마 아빠</p>
+        <p>-기획자 천개의 고원</p>
+      </div>
+      <button onclick="location.reload()">다시 하기</button>
     </div>
   </div>
 

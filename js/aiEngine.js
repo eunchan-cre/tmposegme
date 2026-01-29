@@ -16,22 +16,28 @@ class AIEngine {
 
     configureDifficulty() {
         // defaults
+        this.minSurvivorLevel = 1;
+
         switch (this.difficulty) {
             case 'easy': // 쉬움
                 this.reactionTime = 800;
                 this.errorRate = 0.3; // 30% chance to pick wrong/random lane
+                this.minSurvivorLevel = 2; // 최소 레벨 2 보장
                 break;
             case 'medium': // 중간
                 this.reactionTime = 500;
                 this.errorRate = 0.1;
+                this.minSurvivorLevel = 5; // 최소 레벨 5 보장
                 break;
             case 'hard': // 어려움
                 this.reactionTime = 200;
                 this.errorRate = 0.0;
+                this.minSurvivorLevel = 8; // 최소 레벨 8 보장
                 break;
             case 'hell': // 극악
                 this.reactionTime = 50; // Super fast
                 this.errorRate = 0.0;
+                this.minSurvivorLevel = 12; // 최소 레벨 12 보장
                 break;
         }
     }
@@ -48,6 +54,13 @@ class AIEngine {
 
     decideMove() {
         if (!this.game.isGameActive) return;
+
+        // Apply Invincibility if below min level
+        if (this.game.level < this.minSurvivorLevel) {
+            this.game.isInvincible = true;
+        } else {
+            this.game.isInvincible = false;
+        }
 
         // Analyze falling items
         // We want the item that is closest to catch but safe.
@@ -108,7 +121,10 @@ class AIEngine {
         let bestOption = laneScores[0];
 
         // Apply Error Rate (AI Mistake)
-        if (Math.random() < this.errorRate) {
+        // If Invincible, always play perfect (or standard best).
+        const shouldUseError = !this.game.isInvincible && Math.random() < this.errorRate;
+
+        if (shouldUseError) {
             // Pick a random lane instead
             targetLane = Math.floor(Math.random() * 3);
         } else {

@@ -445,7 +445,7 @@ class GameEngine {
           this.updateLivesUI();
           this.showFeedback(`Missed!`);
 
-          if (this.missedCount >= this.maxMisses) {
+          if (this.missedCount >= this.maxMisses && !this.isInvincible) {
             this.stop(`Game Over!`);
             return;
           }
@@ -509,7 +509,7 @@ class GameEngine {
     if (item.type === 'rocket') {
       this.damageBoss();
       this.showFeedback("ATTACK! 💥");
-    } else if (item.type === 'bomb' && !this.gunActive) {
+    } else if (item.type === 'bomb' && !this.gunActive && !this.isInvincible) {
       this.stop("BOMB! Game Over");
     } else {
       let points = item.score;

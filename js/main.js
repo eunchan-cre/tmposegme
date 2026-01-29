@@ -144,6 +144,9 @@ async function startPVP() {
   gameStartBtn.textContent = "⚔️ BATTLE START";
   gameStartBtn.onclick = launchPVP;
 
+  // Reset Flag
+  isPVPFinished = false;
+
   // Disable main start button (Camera/Keyboard setup) as we are locked in PVP
   document.getElementById("startBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
@@ -197,22 +200,38 @@ function createGameDOM(titleText) {
   return { root };
 }
 
+let isPVPFinished = false;
+
 function handlePVPEnd(score, isP1) {
+  if (isPVPFinished) return;
+  isPVPFinished = true;
+
   // One player died or finished.
   // Logic: If P1 dies, P2 wins. If P2 dies, P1 wins.
   // If Time Over? Compare scores.
 
   // Stop everyone
   if (aiController) aiController.stop();
-  if (gameEngine.isGameActive) gameEngine.stop("Game Over", false);
-  if (gameEngineP2.isGameActive) gameEngineP2.stop("Game Over", false);
+  // Pass true to prevent recursive callback if we modify stop() to support it, 
+  // OR just rely on isPVPFinished upstream check (which we just added).
+  // But wait, gameEngine.stop() calls callback synchronously.
+  // So inside gameEngine.stop(), it calls handlePVPEnd.
+  // We are ALREADY in handlePVPEnd (for the first engine).
+  // We call gameEngineP2.stop(). That calls handlePVPEnd.
+  // The flag `isPVPFinished = true` at the top handles this recursion perfectly.
+
+  if (gameEngine && gameEngine.isGameActive) gameEngine.stop("Game Over", false);
+  if (gameEngineP2 && gameEngineP2.isGameActive) gameEngineP2.stop("Game Over", false);
 
   const p1Score = gameEngine.score;
   const p2Score = gameEngineP2.score;
 
   let resultMsg = "";
   if (!isP1) {
-    // AI Died
+    // AI Died (isP1 is false means the caller was NOT P1? Wait.
+    // Callback: gameEngine (P1) -> handlePVPEnd(score, true)
+    // Callback: gameEngineP2 (AI) -> handlePVPEnd(score, false)
+    // If AI (false) calls this, it means AI died. So P1 wins.
     resultMsg = "YOU WIN! 🏆\n(AI Game Over)";
   } else {
     // Player Died
@@ -222,6 +241,13 @@ function handlePVPEnd(score, isP1) {
   // Check scores if both alive (Time Limit case?)
   // GameEngine stops itself on Time Limit.
   // If reason was Time Limit?
+  // Actually gameEngine.stop() sends "Time's Up!" as reason but we don't catch reason here.
+  // If both are alive (how?), we compare scores.
+  // But usually this logic is triggered by death or time.
+  // If time up: GameEngine calls stop(), then callback.
+  // We just take who "finished" first triggers this?
+  // If time limit is same, they likely finish same frame.
+  // Race condition handled by flag.
 
   // Simple alert for now
   setTimeout(() => {

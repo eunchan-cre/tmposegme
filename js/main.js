@@ -449,10 +449,23 @@ async function handleTesterBtn() {
 
     document.getElementById('roulette-overlay').style.display = 'none';
 
-    if (!gameEngine.isGameActive) {
-      gameEngine.devGunMode = true;
-    }
     gameEngine.devGunMode = true;
+
+    // Fix: Attach Game End Callback for Tester Mode too
+    gameEngine.setGameEndCallback((score, level, victory, engine) => {
+      if (victory) {
+        const endingOverlay = document.getElementById('ending-overlay');
+        if (endingOverlay) {
+          endingOverlay.style.display = 'flex';
+        } else {
+          alert("VICTORY! 🏆 Dragon Defeated!");
+          location.reload();
+        }
+      } else {
+        alert(`GAME OVER\n\nFinal Score: ${score}\nLevel: ${level}`);
+        location.reload();
+      }
+    });
 
     gameEngine.start({ startLevel: targetLevel });
 

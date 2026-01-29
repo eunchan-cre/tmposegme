@@ -109,6 +109,21 @@ class AIEngine {
                     score = itemInLane.score; // 100, 200, 300
                 }
 
+                // If Invincible (Survivor Mode), don't fear bombs.
+                // We want to catch everything, so if a bomb is blocking, just take it (it's blocked).
+                // Actually, if we want to catch 'fruits', we shouldn't avoid lanes just because of a bomb.
+                // However, standard bomb is -1000.
+                if (itemInLane.type === 'bomb' && this.game.isInvincible) {
+                    score = 0; // Neutral. If there's nothing else, might as well stay or move.
+                    // But if there IS a fruit 'behind' it (not visible here since we only see lowest), 
+                    // we might want to clear it?
+                    // Simple fix: Bomb is not negative.
+                    // Even better: If we want to catch fruits, we prioritize lanes with fruits.
+                    // If a lane only has a bomb, score 0.
+                    // If a lane has fruit, score 100+.
+                    // So AI will choose Fruit > Bomb(0).
+                }
+
                 // Distance penalty (don't move too frantically for small points if far away)
                 // distance = Math.abs(lane - this.game.playerPos);
                 // score -= distance * 10;

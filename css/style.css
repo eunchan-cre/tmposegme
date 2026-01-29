@@ -110,7 +110,7 @@ button:hover:not(:disabled) {
   position: relative;
 }
 
-.lane:last-child {
+#lane-2 {
   border-right: none;
 }
 

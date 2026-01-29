@@ -323,11 +323,31 @@ function drawPose(pose) {
 }
 
 // 기존 startGameMode (Single Player)
+// 기존 startGameMode (Single Player)
 function startGameMode(config) {
   if (!gameEngine) {
     console.warn("GameEngine이 초기화되지 않았습니다.");
     return;
   }
+
+  // Set Single Player Game End Callback
+  gameEngine.setGameEndCallback((score, level, victory, engine) => {
+    if (victory) {
+      // Show Ending Credits
+      const endingOverlay = document.getElementById('ending-overlay');
+      if (endingOverlay) {
+        endingOverlay.style.display = 'flex';
+      } else {
+        alert("VICTORY! 🏆 Dragon Defeated!\n(Ending screen missing)");
+        location.reload();
+      }
+    } else {
+      // Normal Game Over
+      alert(`GAME OVER\n\nFinal Score: ${score}\nLevel: ${level}`);
+      location.reload();
+    }
+  });
+
   gameEngine.start(config);
 }
 

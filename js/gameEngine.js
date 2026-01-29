@@ -441,13 +441,16 @@ class GameEngine {
 
       if (item.y > 500) {
         if (item.type !== 'bomb' && item.type !== 'rocket') {
-          this.missedCount++;
-          this.updateLivesUI();
-          this.showFeedback(`Missed!`);
+          // If invincible, do not count miss or update lives UI
+          if (!this.isInvincible) {
+            this.missedCount++;
+            this.updateLivesUI();
+            this.showFeedback(`Missed!`);
 
-          if (this.missedCount >= this.maxMisses && !this.isInvincible) {
-            this.stop(`Game Over!`);
-            return;
+            if (this.missedCount >= this.maxMisses) {
+              this.stop(`Game Over!`);
+              return;
+            }
           }
         }
         item.element.remove();
@@ -511,6 +514,8 @@ class GameEngine {
       this.showFeedback("ATTACK! 💥");
     } else if (item.type === 'bomb' && !this.gunActive && !this.isInvincible) {
       this.stop("BOMB! Game Over");
+    } else if (item.type === 'bomb' && this.isInvincible) {
+      this.showFeedback("🛡️ BLOCKED!");
     } else {
       let points = item.score;
       let color = '#ffeb3b';

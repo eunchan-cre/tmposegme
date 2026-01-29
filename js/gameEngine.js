@@ -609,7 +609,7 @@ class GameEngine {
       if (this.level >= 15 && !this.isBossActive) {
         this.startBossFight();
       } else if (!this.isBossActive) {
-        // this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL UP!`);
+        this.triggerLevelTransition(this.spawnRate, this.baseSpeed, `LEVEL UP!`);
         this.updateTimeUI();
 
         if (this.level <= 9) {
